@@ -1,5 +1,3 @@
-# NeverLost_Server
-
 # NeverLost
 
 https://github.com/user-attachments/assets/fc5f3427-1efe-4330-97fa-19fdaeb66500
