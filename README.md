@@ -28,6 +28,7 @@ Tech Stack
 - Node.js – Backend server for handling requests and data synchronization
 
 Contributing
+
 Feel free to submit issues, fork the repo, or make pull requests. We welcome contributions to improve the NeverLost app!
 
 :copyright: Jesse Smith at NowhereMaps - Digital. All rights reserved. 
