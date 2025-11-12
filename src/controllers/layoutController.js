@@ -40,7 +40,13 @@ const createLayout = async (req, res) => {
   }
 
   const { name, description, objects } = req.body;
-  const userId = req.user.id; // Assuming user ID is available in the request
+  
+  // Get user ID from JWT token (set by authenticate middleware)
+  const userId = req.user?.id;
+  
+  if (!userId) {
+    return res.status(401).json({ error: "User ID not found in token. Please log in again." });
+  }
 
   try {
     const sanityClient = req.sanityClient;
@@ -56,12 +62,27 @@ const createLayout = async (req, res) => {
     };
 
     // Save the new layout to Sanity
-    await sanityClient.create(newLayout);
+    const createdLayout = await sanityClient.create(newLayout);
 
     // Respond with the new layout's ID
-    res.status(201).json({ layoutId: newLayout._id });
+    res.status(201).json({ layoutId: createdLayout._id || newLayout._id });
   } catch (err) {
     console.error("Create Layout Error:", err);
+    
+    // Handle Sanity-specific permission errors
+    if (err.statusCode === 403 || (err.details && err.details.type === "mutationError")) {
+      return res.status(403).json({ 
+        error: "Insufficient permissions. The Sanity token needs write permissions." 
+      });
+    }
+    
+    // Handle validation errors
+    if (err.statusCode === 400) {
+      return res.status(400).json({ 
+        error: err.message || "Invalid layout data." 
+      });
+    }
+    
     res.status(500).json({ error: "Server error. Please try again later." });
   }
 };
