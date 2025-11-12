@@ -4,14 +4,33 @@
  * (replaces deprecated functions.config())
  */
 
+// Core Firebase Functions imports - must be first
 const {onRequest} = require("firebase-functions/v2/https");
 const {defineString, defineSecret} = require("firebase-functions/params");
+
+// Express and middleware
 const express = require("express");
 const cors = require("cors");
+
+// Environment configuration
 const dotenv = require("dotenv");
+
+// Sanity client
 const {createClient} = require("@sanity/client");
-const layoutRoutes = require("./src/routes/layoutRoutes");
-const userRoutes = require("./src/routes/userRoutes");
+
+// Routes - load with error handling
+let layoutRoutes;
+let userRoutes;
+try {
+  layoutRoutes = require("./src/routes/layoutRoutes");
+  userRoutes = require("./src/routes/userRoutes");
+} catch (error) {
+  console.error("Error loading routes:", error);
+  // Create empty routers as fallback
+  const express = require("express");
+  layoutRoutes = express.Router();
+  userRoutes = express.Router();
+}
 
 // Load .env file for local development only
 // Note: PORT, SANITY_TOKEN, and JWT_SECRET should NOT be in .env
@@ -183,30 +202,40 @@ app.use((err, req, res, next) => {
   res.status(500).json({error: "Something went wrong!"});
 });
 
-// Add startup logging
-console.log("🚀 Initializing NeverLost Backend API...");
-console.log("Environment:", process.env.NODE_ENV || "development");
-console.log("Function target:", process.env.FUNCTION_TARGET || "not set");
-
 // Export as Firebase Cloud Function v2
-// Include secrets in the secrets array - they'll be available via
-// process.env at runtime. defineString values are also available via
-// process.env or .value() method
-const functionConfig = {
-  cors: true,
-  maxInstances: 10,
-  timeoutSeconds: 60,
-  memory: "256MiB",
-};
+// This MUST happen synchronously at module load time
+// Cloud Run expects the function to be exported immediately
+try {
+  const functionConfig = {
+    cors: true,
+    maxInstances: 10,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    minInstances: 0, // Allow cold starts
+  };
 
-// Only add secrets if they were successfully defined
-if (sanityToken && jwtSecret) {
-  functionConfig.secrets = [sanityToken, jwtSecret];
-} else {
-  console.warn("⚠️  Secrets not defined, function may not work correctly");
+  // Only add secrets if they were successfully defined
+  // Secrets must be defined at module load time for Firebase Functions v2
+  if (sanityToken && jwtSecret) {
+    functionConfig.secrets = [sanityToken, jwtSecret];
+  } else {
+    console.warn("⚠️  Secrets not defined, function may not work correctly");
+    // Still export the function even without secrets for debugging
+  }
+
+  // Export the function - this must happen synchronously
+  // Firebase Functions v2 handles the PORT=8080 requirement automatically
+  exports.api = onRequest(functionConfig, app);
+  console.log("✅ Firebase Function 'api' exported successfully");
+} catch (error) {
+  console.error("❌ CRITICAL: Failed to export Firebase Function:", error);
+  // Export a minimal function that returns an error
+  // This ensures Cloud Run can start the container
+  exports.api = onRequest({cors: true}, (req, res) => {
+    res.status(500).json({
+      error: "Function initialization failed",
+      message: error.message,
+    });
+  });
 }
-
-exports.api = onRequest(functionConfig, app);
-
-console.log("✅ Firebase Function 'api' exported successfully");
 
