@@ -34,9 +34,10 @@ try {
 
 // Load .env file for local development only
 // Note: PORT, SANITY_TOKEN, and JWT_SECRET should NOT be in .env
-// - PORT is reserved by Firebase Functions
+// - PORT is reserved by Firebase Functions/Cloud Run (must be 8080)
 // - SANITY_TOKEN and JWT_SECRET are defined as secrets and will conflict
 // For local dev, use .env.local file (not tracked by git) for secrets
+// IMPORTANT: Do this BEFORE defining Firebase parameters to avoid conflicts
 if (process.env.NODE_ENV !== "production" || !process.env.FUNCTION_TARGET) {
   // Load .env.local first (for secrets), then .env (for non-secrets)
   dotenv.config({path: ".env.local"});
@@ -181,19 +182,20 @@ app.use((req, res, next) => {
 app.use("/api/layouts", layoutRoutes);
 app.use("/api/users", userRoutes);
 
-// Health check endpoint (must be early for Cloud Run health checks)
-// Cloud Run uses this to verify the container is ready
+// Root Endpoint - Must be first for Cloud Run health checks
+// Cloud Run checks the root path to verify container is ready
+app.get("/", (req, res) => {
+  res.status(200).send("Welcome to the NeverLost Backend Server!");
+});
+
+// Health check endpoint - Cloud Run uses this to verify the container is ready
+// Must respond quickly (within timeout) to pass health checks
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "ok",
     timestamp: new Date().toISOString(),
     service: "NeverLost API",
   });
-});
-
-// Root Endpoint
-app.get("/", (req, res) => {
-  res.status(200).send("Welcome to the NeverLost Backend Server!");
 });
 
 // Global Error Handler
@@ -203,39 +205,32 @@ app.use((err, req, res, next) => {
 });
 
 // Export as Firebase Cloud Function v2
-// This MUST happen synchronously at module load time
-// Cloud Run expects the function to be exported immediately
-try {
-  const functionConfig = {
-    cors: true,
-    maxInstances: 10,
-    timeoutSeconds: 60,
-    memory: "256MiB",
-    minInstances: 0, // Allow cold starts
-  };
+// According to Cloud Run docs: https://cloud.google.com/run/docs/troubleshooting#container-failed-to-start
+// The container must start and listen on PORT=8080 within the timeout
+// Firebase Functions v2 handles this automatically, but we must export synchronously
+const functionConfig = {
+  cors: true,
+  maxInstances: 10,
+  timeoutSeconds: 60,
+  memory: "256MiB",
+  minInstances: 0, // Allow cold starts
+  // Ensure the function is ready immediately
+  invoker: "public", // Allow public access
+};
 
-  // Only add secrets if they were successfully defined
-  // Secrets must be defined at module load time for Firebase Functions v2
-  if (sanityToken && jwtSecret) {
-    functionConfig.secrets = [sanityToken, jwtSecret];
-  } else {
-    console.warn("⚠️  Secrets not defined, function may not work correctly");
-    // Still export the function even without secrets for debugging
-  }
-
-  // Export the function - this must happen synchronously
-  // Firebase Functions v2 handles the PORT=8080 requirement automatically
-  exports.api = onRequest(functionConfig, app);
-  console.log("✅ Firebase Function 'api' exported successfully");
-} catch (error) {
-  console.error("❌ CRITICAL: Failed to export Firebase Function:", error);
-  // Export a minimal function that returns an error
-  // This ensures Cloud Run can start the container
-  exports.api = onRequest({cors: true}, (req, res) => {
-    res.status(500).json({
-      error: "Function initialization failed",
-      message: error.message,
-    });
-  });
+// Only add secrets if they were successfully defined
+// Secrets must be defined at module load time for Firebase Functions v2
+if (sanityToken && jwtSecret) {
+  functionConfig.secrets = [sanityToken, jwtSecret];
+} else {
+  console.warn("⚠️  Secrets not defined, function may not work correctly");
+  // Still export the function even without secrets for debugging
 }
+
+// Export the function - this MUST happen synchronously at module load
+// Firebase Functions v2 with onRequest automatically handles:
+// - Listening on PORT=8080 (set by Cloud Run)
+// - HTTP request routing
+// - Container lifecycle
+exports.api = onRequest(functionConfig, app);
 
