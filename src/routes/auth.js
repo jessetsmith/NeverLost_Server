@@ -15,50 +15,52 @@ const client = [
 ];
 
 // User Schema in Sanity (if not already defined)
-const userSchema = {
-  name: "user",
-  title: "User",
-  type: "document",
-  fields: [
-    {
-      name: "username",
-      title: "Username",
-      type: "string",
-      validation: (Rule) => Rule.required(),
-    },
-    {
-      name: "email",
-      title: "Email",
-      type: "string",
-      validation: (Rule) => Rule.required().email(),
-    },
-    {
-      name: "password",
-      title: "Password",
-      type: "string",
-      validation: (Rule) => Rule.required(),
-    },
-  ],
-};
+// Note: This schema is defined in sanity/schemaTypes/schema.js
+// Keeping this commented out as it's not used in this file
+// const userSchema = {
+//   name: "user",
+//   title: "User",
+//   type: "document",
+//   fields: [
+//     {
+//       name: "username",
+//       title: "Username",
+//       type: "string",
+//       validation: (Rule) => Rule.required(),
+//     },
+//     {
+//       name: "email",
+//       title: "Email",
+//       type: "string",
+//       validation: (Rule) => Rule.required().email(),
+//     },
+//     {
+//       name: "password",
+//       title: "Password",
+//       type: "string",
+//       validation: (Rule) => Rule.required(),
+//     },
+//   ],
+// };
 
 // Registration Route
 router.post("/register", async (req, res) => {
-  const { username, email, password } = req.body;
+  const {username, email, password} = req.body;
 
   // Basic Validation
   if (!username || !email || !password) {
-    return res.status(400).json({ message: "Please enter all fields." });
+    return res.status(400).json({message: "Please enter all fields."});
   }
 
   try {
     // Check if user already exists
     const existingUser = await client.fetch(
-      `*[_type == "user" && email == $email][0]`,
-      { email },
+        `*[_type == "user" && email == $email][0]`,
+        {email},
     );
 
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists." });
+      return res.status(400).json({message: "User already exists."});
     }
 
     // Hash Password
@@ -77,15 +79,15 @@ router.post("/register", async (req, res) => {
 
     // Generate JWT
     const token = jwt.sign(
-      { userId: newUser._id, username },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" },
+        {userId: newUser._id, username},
+        process.env.JWT_SECRET,
+        {expiresIn: "1h"},
     );
 
-    res.status(201).json({ token, message: "User registered successfully." });
+    res.status(201).json({token, message: "User registered successfully."});
   } catch (error) {
     console.error("Registration Error:", error);
-    res.status(500).json({ message: "Server error. Please try again later." });
+    res.status(500).json({message: "Server error. Please try again later."});
   }
 });
 

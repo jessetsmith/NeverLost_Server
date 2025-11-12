@@ -12,30 +12,30 @@ const registerUser = async (req, res) => {
   });
 
   // Validate request body against schema
-  const { error } = schema.validate(req.body);
+  const {error} = schema.validate(req.body);
   if (error) {
-    return res.status(400).json({ error: error.details[0].message });
+    return res.status(400).json({error: error.details[0].message});
   }
 
-  const { username, email, password } = req.body;
+  const {username, email, password} = req.body;
 
   try {
     const sanityClient = req.sanityClient;
 
     // Check if user with the provided email already exists
     const existingUserQuery = `*[_type == "user" && email == $email][0]`;
-    const existingUser = await sanityClient.fetch(existingUserQuery, { email });
+    const existingUser = await sanityClient.fetch(existingUserQuery, {email});
 
     if (existingUser) {
-      return res.status(400).json({ error: "User with this email already exists." });
+      return res.status(400).json({error: "User with this email already exists."});
     }
 
     // Check if username is already taken
     const existingUsernameQuery = `*[_type == "user" && username == $username][0]`;
-    const existingUsername = await sanityClient.fetch(existingUsernameQuery, { username });
+    const existingUsername = await sanityClient.fetch(existingUsernameQuery, {username});
 
     if (existingUsername) {
-      return res.status(400).json({ error: "Username is already taken." });
+      return res.status(400).json({error: "Username is already taken."});
     }
 
     // Hash password
@@ -55,9 +55,9 @@ const registerUser = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: createdUser._id, email: createdUser.email },
-      process.env.JWT_SECRET || "fallback-secret-key",
-      { expiresIn: "1h" },
+        {id: createdUser._id, email: createdUser.email},
+        process.env.JWT_SECRET || "fallback-secret-key",
+        {expiresIn: "1h"},
     );
 
     // Respond with user data and token (Sanity returns _id, we map it to id for frontend)
@@ -71,29 +71,29 @@ const registerUser = async (req, res) => {
     });
   } catch (err) {
     console.error("Registration Error:", err);
-    
+
     // Handle Sanity-specific permission errors
     if (err.statusCode === 403 || (err.details && err.details.type === "mutationError")) {
-      return res.status(403).json({ 
-        error: "Insufficient permissions. The Sanity token needs write permissions. Please create a new token with 'Editor' or 'Admin' role at https://sanity.io/manage" 
+      return res.status(403).json({
+        error: "Insufficient permissions. The Sanity token needs write permissions. Please create a new token with 'Editor' or 'Admin' role at https://sanity.io/manage",
       });
     }
-    
+
     // Handle missing token errors
     if (err.message && (err.message.includes("token") || err.message.includes("authentication"))) {
-      return res.status(500).json({ 
-        error: "Authentication error. Please check your Sanity token configuration." 
+      return res.status(500).json({
+        error: "Authentication error. Please check your Sanity token configuration.",
       });
     }
-    
+
     // Handle validation errors from Sanity
     if (err.statusCode === 400) {
-      return res.status(400).json({ 
-        error: err.message || "Invalid data provided." 
+      return res.status(400).json({
+        error: err.message || "Invalid data provided.",
       });
     }
-    
-    res.status(500).json({ error: "Server error. Please try again later." });
+
+    res.status(500).json({error: "Server error. Please try again later."});
   }
 };
 
@@ -106,35 +106,35 @@ const loginUser = async (req, res) => {
   });
 
   // Validate request body against schema
-  const { error } = schema.validate(req.body);
+  const {error} = schema.validate(req.body);
   if (error) {
-    return res.status(400).json({ error: error.details[0].message });
+    return res.status(400).json({error: error.details[0].message});
   }
 
-  const { email, password } = req.body;
+  const {email, password} = req.body;
 
   try {
     const sanityClient = req.sanityClient;
 
     // Check if user with the provided email exists
     const userQuery = `*[_type == "user" && email == $email][0]`;
-    const user = await sanityClient.fetch(userQuery, { email });
+    const user = await sanityClient.fetch(userQuery, {email});
 
     if (!user) {
-      return res.status(400).json({ error: "Invalid email or password." });
+      return res.status(400).json({error: "Invalid email or password."});
     }
 
     // Compare provided password with stored hashed password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ error: "Invalid email or password." });
+      return res.status(400).json({error: "Invalid email or password."});
     }
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user._id, email: user.email },
-      process.env.JWT_SECRET || "fallback-secret-key",
-      { expiresIn: "1h" },
+        {id: user._id, email: user.email},
+        process.env.JWT_SECRET || "fallback-secret-key",
+        {expiresIn: "1h"},
     );
 
     // Respond with user data and token (Sanity returns _id, we map it to id for frontend)
@@ -148,7 +148,7 @@ const loginUser = async (req, res) => {
     });
   } catch (err) {
     console.error("Login Error:", err);
-    res.status(500).json({ error: "Server error. Please try again later." });
+    res.status(500).json({error: "Server error. Please try again later."});
   }
 };
 

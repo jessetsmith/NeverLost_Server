@@ -8,7 +8,7 @@ const {
   getAllLayouts, // Add this import
 } = require("../controllers/layoutController");
 
-const { authenticate } = require("../middleware/authenticate");
+const {authenticate} = require("../middleware/authenticate");
 
 // Create Layout Route
 router.post("/", authenticate, createLayout);
@@ -20,7 +20,8 @@ router.get("/", authenticate, getAllLayouts); // Add this route
 router.get("/:layoutId", authenticate, getLayoutById);
 
 // Update Layout Route
-router.put("/:layoutId", authenticate, updateLayout); // Ensure this route is configured
+// Ensure this route is configured
+router.put("/:layoutId", authenticate, updateLayout);
 
 // Delete Layout Route
 router.delete("/:layoutId", authenticate, deleteLayout);

@@ -1,36 +1,115 @@
-# NeverLost
+# NeverLost Backend Server
 
-https://github.com/user-attachments/assets/fc5f3427-1efe-4330-97fa-19fdaeb66500
+Backend server for the NeverLost application, built with Express.js and Sanity.io.
 
-NeverLost is an intuitive web application designed to help users organize and track their belongings in a 3D environment. Using the power of three.js, React, Vite, Sanity.io, and a Node.js server, NeverLost provides a seamless experience for creating interactive 3D layouts to visualize where your important items are stored.
+## Quick Start
 
-With NeverLost, you can:
+### 1. Install Dependencies
 
-Design Custom Layouts: Create 3D representations of your home, office, or any space to map out where your belongings are.
-Track Items Easily: Keep a digital inventory of your items, tagged to their exact locations within your layout.
-Stay Organized: Easily find and retrieve your items by navigating the 3D layout in real-time.
+```bash
+npm install
+```
 
-Features:
-3D Layout Creation: Build interactive 3D models of your space using three.js, allowing for a fully immersive experience.
-Dynamic Content Management: Utilize Sanity.io for flexible content management to store item data, tags, and location information.
-Real-time Interaction: Use React for a responsive and fluid user interface.
-Fast and Optimized: Powered by Vite for lightning-fast build times and performance.
-Backend Support: A Node.js server to handle user data, item storage, and layout syncing.
+### 2. Set Up Environment Variables
 
+Create a `.env` file in the project root:
 
-Tech Stack
-- Three.js – 3D graphics rendering
-- React – UI components and state management
-- Vite – Fast development environment and bundler
-- Sanity.io – Content management for item data
-- Node.js – Backend server for handling requests and data synchronization
+```bash
+# Server Configuration
+PORT=3000
 
-Contributing
+# Sanity.io Configuration
+SANITY_PROJECT_ID=492nxyas
+SANITY_DATASET=production
+SANITY_TOKEN=your-sanity-token-here
 
-Feel free to submit issues, fork the repo, or make pull requests. We welcome contributions to improve the NeverLost app!
+# JWT Secret (for authentication)
+JWT_SECRET=your-jwt-secret-here
+```
 
-:copyright: Jesse Smith at NowhereMaps - Digital. All rights reserved. 
+**Important:**
+- Get your Sanity token from: https://sanity.io/manage
+- Make sure the token has "Editor" or "Admin" role (not "Viewer")
+- Generate a secure JWT_SECRET for production
 
-![NOWHERE](https://github.com/user-attachments/assets/bdd0444d-2b2f-4f04-b0d8-5825740e9ff3)
+### 3. Start the Server
 
+**Development mode (with auto-reload):**
+```bash
+npm run dev
+```
 
+**Production mode:**
+```bash
+npm start
+```
+
+The server will start on `http://localhost:3000` (or the port specified in `.env`).
+
+## API Endpoints
+
+### Authentication
+- `POST /api/users/register` - Register a new user
+- `POST /api/users/login` - Login user
+
+### Layouts
+- `GET /api/layouts` - Get all layouts for authenticated user
+- `POST /api/layouts` - Create a new layout
+- `GET /api/layouts/:layoutId` - Get layout by ID
+- `PUT /api/layouts/:layoutId` - Update layout
+- `DELETE /api/layouts/:layoutId` - Delete layout
+
+### Health Check
+- `GET /health` - Server health check
+- `GET /` - Welcome message
+
+## Project Structure
+
+```
+NeverLost_Server/
+├── src/
+│   ├── server.js          # Main server file
+│   ├── controllers/       # Request handlers
+│   ├── middleware/        # Express middleware
+│   └── routes/            # API routes
+├── sanity/                # Sanity.io configuration
+├── .env                   # Environment variables (create this)
+└── package.json
+```
+
+## Environment Variables
+
+See `ENV_VARIABLES.md` for detailed information about environment variable configuration.
+
+## Development
+
+- **Lint code:** `npm run lint`
+- **Fix linting issues:** `npm run lint:fix`
+- **Start dev server:** `npm run dev`
+
+## Deployment
+
+This server can be deployed to any Node.js hosting platform:
+- Heroku
+- Railway
+- Render
+- DigitalOcean App Platform
+- AWS Elastic Beanstalk
+- Google Cloud Run
+- etc.
+
+For Firebase Functions deployment (if needed in the future), see `docs/firebase/` directory.
+
+## Troubleshooting
+
+### Sanity Token Errors
+- Make sure your Sanity token has "Editor" or "Admin" role
+- See `SANITY_TOKEN_SETUP.md` for detailed instructions
+
+### Port Already in Use
+- Change `PORT` in `.env` to a different port
+- Or stop the process using port 3000
+
+## License
+
+Copyright © Jesse Smith at NowhereMaps - Digital. All rights reserved.
