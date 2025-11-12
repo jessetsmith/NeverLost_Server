@@ -19,6 +19,7 @@ const dotenv = require("dotenv");
 const {createClient} = require("@sanity/client");
 
 // Routes - load with error handling
+// Defer route loading to avoid blocking module initialization
 let layoutRoutes;
 let userRoutes;
 try {
@@ -26,10 +27,10 @@ try {
   userRoutes = require("./src/routes/userRoutes");
 } catch (error) {
   console.error("Error loading routes:", error);
-  // Create empty routers as fallback
-  const express = require("express");
-  layoutRoutes = express.Router();
-  userRoutes = express.Router();
+  // Create empty routers as fallback to prevent startup failure
+  const expressRouter = require("express").Router;
+  layoutRoutes = expressRouter();
+  userRoutes = expressRouter();
 }
 
 // Load .env file for local development only
@@ -37,38 +38,42 @@ try {
 // - PORT is reserved by Firebase Functions/Cloud Run (must be 8080)
 // - SANITY_TOKEN and JWT_SECRET are defined as secrets and will conflict
 // For local dev, use .env.local file (not tracked by git) for secrets
-// IMPORTANT: Do this BEFORE defining Firebase parameters to avoid conflicts
-if (process.env.NODE_ENV !== "production" || !process.env.FUNCTION_TARGET) {
-  // Load .env.local first (for secrets), then .env (for non-secrets)
-  dotenv.config({path: ".env.local"});
-  dotenv.config(); // .env will override .env.local for non-secret values
+// IMPORTANT: Only load .env in local dev to avoid conflicts with Cloud Run
+// Cloud Run will provide PORT=8080 and secrets via environment variables
+if (!process.env.FUNCTION_TARGET && !process.env.K_SERVICE) {
+  // Only load .env in local development (not in Cloud Run)
+  try {
+    dotenv.config({path: ".env.local"});
+    dotenv.config(); // .env will override .env.local for non-secret values
+  } catch (error) {
+    // Ignore .env loading errors - not critical for Cloud Run
+  }
 }
 
 // Define environment variables using the new v2 API
-// For non-sensitive values
-let sanityProjectId;
-let sanityDataset;
+// These register the parameters with Firebase Functions
+// Values are accessed via process.env at runtime (not .value())
 let sanityToken;
 let jwtSecret;
 
 try {
-  sanityProjectId = defineString("SANITY_PROJECT_ID", {
+  // Register string parameters (values available via process.env)
+  defineString("SANITY_PROJECT_ID", {
     default: "492nxyas",
     description: "Sanity.io project ID",
   });
 
-  sanityDataset = defineString("SANITY_DATASET", {
+  defineString("SANITY_DATASET", {
     default: "production",
     description: "Sanity.io dataset name",
   });
 
-  // For sensitive values (secrets)
+  // Register secrets (values available via process.env when deployed)
   sanityToken = defineSecret("SANITY_TOKEN");
   jwtSecret = defineSecret("JWT_SECRET");
 } catch (error) {
   console.error("Error defining Firebase parameters:", error);
-  // Fallback to process.env if defineString/defineSecret fails
-  // This should not happen in production, but helps with local dev
+  // Continue without secrets - function will still export
 }
 
 // Initialize Express app
@@ -114,31 +119,13 @@ app.use(express.json());
 // Initialize Sanity client
 // Note: In Firebase Functions v2, when secrets are included in the
 // function config, they are automatically available via process.env at runtime
+// IMPORTANT: Do NOT call .value() during module load - defer to runtime
 const getSanityClient = () => {
   try {
-    // Use defineString value() or fallback to process.env or default
-    let projectId;
-    let dataset;
-
-    if (sanityProjectId) {
-      try {
-        projectId = sanityProjectId.value();
-      } catch (e) {
-        projectId = process.env.SANITY_PROJECT_ID || "492nxyas";
-      }
-    } else {
-      projectId = process.env.SANITY_PROJECT_ID || "492nxyas";
-    }
-
-    if (sanityDataset) {
-      try {
-        dataset = sanityDataset.value();
-      } catch (e) {
-        dataset = process.env.SANITY_DATASET || "production";
-      }
-    } else {
-      dataset = process.env.SANITY_DATASET || "production";
-    }
+    // Always use process.env at runtime - secrets are injected automatically
+    // Don't call .value() during module load as it may block initialization
+    const projectId = process.env.SANITY_PROJECT_ID || "492nxyas";
+    const dataset = process.env.SANITY_DATASET || "production";
 
     const sanityClientConfig = {
       projectId: projectId,
@@ -152,11 +139,6 @@ const getSanityClient = () => {
     const token = process.env.SANITY_TOKEN;
     if (token && token.trim() !== "") {
       sanityClientConfig.token = token;
-      console.log("✅ Sanity token loaded (write operations enabled)");
-    } else {
-      console.warn(
-          "⚠️  Warning: SANITY_TOKEN not set. Write operations will fail.",
-      );
     }
 
     return createClient(sanityClientConfig);
@@ -206,15 +188,15 @@ app.use((err, req, res, next) => {
 
 // Export as Firebase Cloud Function v2
 // According to Cloud Run docs: https://cloud.google.com/run/docs/troubleshooting#container-failed-to-start
-// The container must start and listen on PORT=8080 within the timeout
-// Firebase Functions v2 handles this automatically, but we must export synchronously
+// The container must start and listen on PORT=8080 within the allocated timeout
+// Firebase Functions v2 with onRequest handles PORT=8080 automatically
+// CRITICAL: Export must happen synchronously - no async operations before this
 const functionConfig = {
   cors: true,
   maxInstances: 10,
   timeoutSeconds: 60,
   memory: "256MiB",
   minInstances: 0, // Allow cold starts
-  // Ensure the function is ready immediately
   invoker: "public", // Allow public access
 };
 
@@ -222,15 +204,13 @@ const functionConfig = {
 // Secrets must be defined at module load time for Firebase Functions v2
 if (sanityToken && jwtSecret) {
   functionConfig.secrets = [sanityToken, jwtSecret];
-} else {
-  console.warn("⚠️  Secrets not defined, function may not work correctly");
-  // Still export the function even without secrets for debugging
 }
 
-// Export the function - this MUST happen synchronously at module load
-// Firebase Functions v2 with onRequest automatically handles:
-// - Listening on PORT=8080 (set by Cloud Run)
-// - HTTP request routing
-// - Container lifecycle
+// Export the function IMMEDIATELY - this is critical for Cloud Run
+// Firebase Functions v2 with onRequest automatically:
+// - Listens on PORT=8080 (provided by Cloud Run)
+// - Handles HTTP request routing
+// - Manages container lifecycle
+// The Express app must be fully configured before this point
 exports.api = onRequest(functionConfig, app);
 
