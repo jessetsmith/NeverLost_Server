@@ -1,7 +1,8 @@
-node_modules/
+uploads/
 *.local
 .env.local
 .env
 .firebase/
 *.log
 .DS_Store
+node_modules

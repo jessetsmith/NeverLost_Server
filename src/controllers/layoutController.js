@@ -87,9 +87,28 @@ const createLayout = async (req, res) => {
   }
 };
 
-// Define other controllers if needed
 const getLayoutById = async (req, res) => {
-  // Implementation here
+  const {layoutId} = req.params;
+  const userId = req.user.id;
+
+  try {
+    const sanityClient = req.sanityClient;
+    const layout = await sanityClient.getDocument(layoutId);
+
+    if (!layout || layout.userId !== userId) {
+      return res.status(404).json({error: "Layout not found or access denied."});
+    }
+
+    res.status(200).json({
+      layoutId: layout._id,
+      name: layout.name,
+      description: layout.description,
+      objects: layout.objects || [],
+    });
+  } catch (err) {
+    console.error("Get Layout By ID Error:", err);
+    res.status(500).json({error: "Server error. Please try again later."});
+  }
 };
 
 const updateLayout = async (req, res) => {
@@ -107,14 +126,16 @@ const updateLayout = async (req, res) => {
           .json({error: "Layout not found or access denied."});
     }
 
-    const updatedLayout = {
-      ...existingLayout,
-      objects: objects || existingLayout.objects, // Update objects
-    };
+    const updatedObjects = objects || existingLayout.objects;
 
-    await sanityClient.patch(layoutId).set(updatedLayout).commit();
+    await sanityClient.patch(layoutId).set({objects: updatedObjects}).commit();
 
-    res.status(200).json(updatedLayout);
+    res.status(200).json({
+      layoutId: existingLayout._id,
+      name: existingLayout.name,
+      description: existingLayout.description,
+      objects: updatedObjects,
+    });
   } catch (err) {
     console.error("Update Layout Error:", err);
     res.status(500).json({error: "Server error. Please try again later."});

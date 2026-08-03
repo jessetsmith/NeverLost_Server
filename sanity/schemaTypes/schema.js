@@ -36,10 +36,21 @@ export const schemaTypes = [
               {name: 'key', type: 'string', title: 'Key'},
               {name: 'id', type: 'string', title: 'Object ID'},
               {name: 'type', type: 'string', title: 'Object Type'},
+              {name: 'name', type: 'string', title: 'Object Name'},
+              {
+                name: 'assetUrl',
+                title: '3D Asset URL',
+                type: 'url',
+              },
               {
                 name: 'color',
                 title: 'Color',
                 type: 'string', // Use string for color hex
+              },
+              {
+                name: 'opacity',
+                title: 'Opacity',
+                type: 'number',
               },
               {
                 name: 'position',

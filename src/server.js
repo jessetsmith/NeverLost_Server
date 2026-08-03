@@ -1,9 +1,13 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const multer = require("multer");
+const path = require("path");
 const {createClient} = require("@sanity/client");
 const layoutRoutes = require("./routes/layoutRoutes");
 const userRoutes = require("./routes/userRoutes");
+const assetRoutes = require("./routes/assetRoutes");
+const {UPLOADS_ROOT} = require("./controllers/assetController");
 
 // Load environment variables from .env file
 dotenv.config();
@@ -125,9 +129,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serve uploaded assets locally (fallback storage)
+app.use("/uploads/assets", express.static(UPLOADS_ROOT, {
+  setHeaders(res) {
+    res.set("Access-Control-Allow-Origin", "http://localhost:5173");
+    res.set("Cross-Origin-Resource-Policy", "cross-origin");
+  },
+}));
+
 // Routes
 app.use("/api/layouts", layoutRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/assets", assetRoutes);
 
 // Root Endpoint
 app.get("/", (req, res) => {
@@ -136,6 +149,15 @@ app.get("/", (req, res) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({error: "File too large. Maximum size is 25 MB."});
+    }
+    return res.status(400).json({error: err.message});
+  }
+  if (err.message === "Only .glb and .gltf files are allowed.") {
+    return res.status(400).json({error: err.message});
+  }
   console.error(err.stack);
   res.status(500).send("Something broke!");
 });
@@ -144,4 +166,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`Asset uploads: POST /api/assets/upload`);
+  console.log(`Asset proxy:   GET  /api/assets/proxy?url=...`);
 });

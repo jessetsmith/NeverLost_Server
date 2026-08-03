@@ -22,15 +22,17 @@ const {createClient} = require("@sanity/client");
 // Defer route loading to avoid blocking module initialization
 let layoutRoutes;
 let userRoutes;
+let assetRoutes;
 try {
   layoutRoutes = require("./src/routes/layoutRoutes");
   userRoutes = require("./src/routes/userRoutes");
+  assetRoutes = require("./src/routes/assetRoutes");
 } catch (error) {
   console.error("Error loading routes:", error);
-  // Create empty routers as fallback to prevent startup failure
   const expressRouter = require("express").Router;
   layoutRoutes = expressRouter();
   userRoutes = expressRouter();
+  assetRoutes = expressRouter();
 }
 
 // Load .env file for local development only
@@ -160,9 +162,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serve locally uploaded assets (fallback storage for dev / when Sanity upload fails)
+const {UPLOADS_ROOT} = require("./src/controllers/assetController");
+const path = require("path");
+app.use("/uploads/assets", express.static(UPLOADS_ROOT, {
+  setHeaders(res) {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Cross-Origin-Resource-Policy", "cross-origin");
+  },
+}));
+
 // Routes
 app.use("/api/layouts", layoutRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/assets", assetRoutes);
 
 // Root Endpoint - Must be first for Cloud Run health checks
 // Cloud Run checks the root path to verify container is ready
@@ -182,6 +195,16 @@ app.get("/health", (req, res) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
+  const multer = require("multer");
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({error: "File too large. Maximum size is 25 MB."});
+    }
+    return res.status(400).json({error: err.message});
+  }
+  if (err.message === "Only .glb and .gltf files are allowed.") {
+    return res.status(400).json({error: err.message});
+  }
   console.error("Error:", err.stack);
   res.status(500).json({error: "Something went wrong!"});
 });

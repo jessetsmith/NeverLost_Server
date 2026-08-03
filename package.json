@@ -25,6 +25,7 @@
     "firebase-functions": "^6.6.0",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.2.0",
     "uuid": "^11.0.3"
   },
   "devDependencies": {
