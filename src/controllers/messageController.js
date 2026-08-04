@@ -48,7 +48,7 @@ const getConversations = async (req, res) => {
     const userIds = [...threadMap.keys()];
     const users = userIds.length ?
       await sanityClient.fetch(
-          `*[_type == "user" && _id in $userIds]{ _id, username }`,
+          `*[_type == "user" && _id in $userIds]{ _id, username, profileImageUrl }`,
           {userIds},
       ) :
       [];
@@ -58,6 +58,7 @@ const getConversations = async (req, res) => {
     const conversations = [...threadMap.values()].map((thread) => ({
       ...thread,
       username: userMap[thread.userId]?.username || "Unknown",
+      profileImageUrl: userMap[thread.userId]?.profileImageUrl || null,
     }));
 
     res.status(200).json({conversations});
@@ -117,6 +118,7 @@ const getMessagesWithUser = async (req, res) => {
       otherUser: {
         userId: otherUser._id,
         username: otherUser.username,
+        profileImageUrl: otherUser.profileImageUrl || null,
       },
     });
   } catch (err) {
