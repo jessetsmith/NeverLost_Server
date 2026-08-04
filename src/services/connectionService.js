@@ -2,7 +2,11 @@ const ACCEPTED_STATUS_FILTER = `(status == "accepted" || !defined(status))`;
 const PENDING_STATUS_FILTER = `status == "pending"`;
 
 async function isConnected(sanityClient, userId, connectedUserId) {
-  const query = `count(*[_type == "connection" && ${ACCEPTED_STATUS_FILTER} && userId == $userId && connectedUserId == $connectedUserId])`;
+  const query = [
+    "count(*[_type == \"connection\"",
+    `&& ${ACCEPTED_STATUS_FILTER}`,
+    "&& userId == $userId && connectedUserId == $connectedUserId])",
+  ].join(" ");
   const count = await sanityClient.fetch(query, {userId, connectedUserId});
   return count > 0;
 }
@@ -16,16 +20,26 @@ async function getConnectionStatus(sanityClient, viewerId, otherUserId) {
     return "connected";
   }
 
+  const pendingOutgoingQuery = [
+    "*[_type == \"connection\"",
+    `&& ${PENDING_STATUS_FILTER}`,
+    "&& userId == $viewerId && connectedUserId == $otherUserId][0]._id",
+  ].join(" ");
   const pendingOutgoing = await sanityClient.fetch(
-      `*[_type == "connection" && ${PENDING_STATUS_FILTER} && userId == $viewerId && connectedUserId == $otherUserId][0]._id`,
+      pendingOutgoingQuery,
       {viewerId, otherUserId},
   );
   if (pendingOutgoing) {
     return "pending_outgoing";
   }
 
+  const pendingIncomingQuery = [
+    "*[_type == \"connection\"",
+    `&& ${PENDING_STATUS_FILTER}`,
+    "&& userId == $otherUserId && connectedUserId == $viewerId][0]._id",
+  ].join(" ");
   const pendingIncoming = await sanityClient.fetch(
-      `*[_type == "connection" && ${PENDING_STATUS_FILTER} && userId == $otherUserId && connectedUserId == $viewerId][0]._id`,
+      pendingIncomingQuery,
       {viewerId, otherUserId},
   );
   if (pendingIncoming) {
@@ -36,14 +50,18 @@ async function getConnectionStatus(sanityClient, viewerId, otherUserId) {
 }
 
 async function findConnectionBetween(sanityClient, userId, connectedUserId) {
-  return sanityClient.fetch(
-      `*[_type == "connection" && userId == $userId && connectedUserId == $connectedUserId][0]`,
-      {userId, connectedUserId},
-  );
+  const query = [
+    "*[_type == \"connection\"",
+    "&& userId == $userId && connectedUserId == $connectedUserId][0]",
+  ].join(" ");
+  return sanityClient.fetch(query, {userId, connectedUserId});
 }
 
 async function getPublishedLayoutCount(sanityClient, ownerUserId) {
-  const query = `count(*[_type == "layout" && visibility == "published" && userId == $ownerUserId])`;
+  const query = [
+    "count(*[_type == \"layout\"",
+    "&& visibility == \"published\" && userId == $ownerUserId])",
+  ].join(" ");
   return sanityClient.fetch(query, {ownerUserId});
 }
 

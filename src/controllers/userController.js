@@ -325,8 +325,12 @@ const getPublicProfile = async (req, res) => {
 
     let pendingRequestId = null;
     if (connectionStatus === "pending_incoming") {
+      const pendingQuery = [
+        "*[_type == \"connection\" && status == \"pending\"",
+        "&& userId == $userId && connectedUserId == $viewerId][0]._id",
+      ].join(" ");
       pendingRequestId = await sanityClient.fetch(
-          `*[_type == "connection" && status == "pending" && userId == $userId && connectedUserId == $viewerId][0]._id`,
+          pendingQuery,
           {userId, viewerId},
       );
     }

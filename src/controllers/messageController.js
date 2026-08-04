@@ -19,7 +19,10 @@ const getConversations = async (req, res) => {
 
   try {
     const sanityClient = req.sanityClient;
-    const query = `*[_type == "message" && (fromUserId == $userId || toUserId == $userId)] | order(createdAt desc)`;
+    const query = [
+      "*[_type == \"message\" && (fromUserId == $userId || toUserId == $userId)]",
+      "| order(createdAt desc)",
+    ].join(" ");
     const messages = await sanityClient.fetch(query, {userId});
 
     const threadMap = new Map();

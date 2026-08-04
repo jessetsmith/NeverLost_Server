@@ -170,8 +170,12 @@ const getAllLayouts = async (req, res) => {
   try {
     const sanityClient = req.sanityClient;
 
-    const ownedQuery = `*[_type == "layout" && userId == $userId] | order(_createdAt desc)`;
-    const sharedQuery = `*[_type == "layout" && userId != $userId && count(collaborators[userId == $userId && status == "accepted"]) > 0] | order(_createdAt desc)`;
+    const ownedQuery = "*[_type == \"layout\" && userId == $userId] | order(_createdAt desc)";
+    const sharedQuery = [
+      "*[_type == \"layout\" && userId != $userId",
+      "&& count(collaborators[userId == $userId && status == \"accepted\"]) > 0]",
+      "| order(_createdAt desc)",
+    ].join(" ");
 
     const [ownedLayouts, sharedLayouts] = await Promise.all([
       sanityClient.fetch(ownedQuery, {userId}),
@@ -180,7 +184,9 @@ const getAllLayouts = async (req, res) => {
 
     res.status(200).json({
       owned: ownedLayouts.map((layout) => formatLayoutSummary(layout, "owner")),
-      shared: sharedLayouts.map((layout) => formatLayoutSummary(layout, getLayoutRole(layout, userId))),
+      shared: sharedLayouts.map((layout) => (
+        formatLayoutSummary(layout, getLayoutRole(layout, userId))
+      )),
     });
   } catch (err) {
     console.error("Get All Layouts Error:", err);
@@ -267,8 +273,12 @@ const exploreLayouts = async (req, res) => {
       const publishedLayoutCount = await getPublishedLayoutCount(sanityClient, ownerUserId);
       connectionStatus = await getConnectionStatus(sanityClient, currentUserId, ownerUserId);
       if (connectionStatus === "pending_incoming") {
+        const pendingQuery = [
+          "*[_type == \"connection\" && status == \"pending\"",
+          "&& userId == $ownerUserId && connectedUserId == $currentUserId][0]._id",
+        ].join(" ");
         pendingRequestId = await sanityClient.fetch(
-            `*[_type == "connection" && status == "pending" && userId == $ownerUserId && connectedUserId == $currentUserId][0]._id`,
+            pendingQuery,
             {ownerUserId, currentUserId},
         );
       }

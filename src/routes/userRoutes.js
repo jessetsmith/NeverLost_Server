@@ -12,7 +12,9 @@ const {
 } = require("../controllers/userController");
 const {authenticate} = require("../middleware/authenticate");
 const {authLimiter, uploadLimiter} = require("../middleware/security");
-const {uploadProfileImage: uploadProfileImageMiddleware} = require("../middleware/uploadProfileImage");
+const {
+  uploadProfileImage: uploadProfileImageMiddleware,
+} = require("../middleware/uploadProfileImage");
 
 router.post("/register", authLimiter, registerUser);
 router.post("/login", authLimiter, loginUser);

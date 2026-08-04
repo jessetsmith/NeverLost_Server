@@ -126,11 +126,13 @@ const acceptInvite = async (req, res) => {
 
     const invitee = await getUserSummary(sanityClient, userId);
     const permissionLabel = collaborator.role === "viewer" ? "view" : "edit";
+    const inviteeName = invitee?.username || "A user";
+    const body = `${inviteeName} accepted your invite to ${permissionLabel} "${layout.name}".`;
     await createNotification(sanityClient, {
       recipientUserId: layout.userId,
       type: "invite_accepted",
       title: "Invite accepted",
-      body: `${invitee?.username || "A user"} accepted your invite to ${permissionLabel} "${layout.name}".`,
+      body,
       payload: {layoutId, layoutName: layout.name, userId, role: collaborator.role || "editor"},
     });
 

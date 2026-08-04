@@ -4,7 +4,6 @@ const {createNotification} = require("../services/notificationService");
 const {
   ACCEPTED_STATUS_FILTER,
   PENDING_STATUS_FILTER,
-  isConnected,
   getConnectionStatus,
   findConnectionBetween,
 } = require("../services/connectionService");
@@ -32,7 +31,10 @@ const listConnections = async (req, res) => {
 
   try {
     const sanityClient = req.sanityClient;
-    const query = `*[_type == "connection" && userId == $userId && ${ACCEPTED_STATUS_FILTER}] | order(createdAt desc)`;
+    const query = [
+      `*[_type == "connection" && userId == $userId && ${ACCEPTED_STATUS_FILTER}]`,
+      "| order(createdAt desc)",
+    ].join(" ");
     const connections = await sanityClient.fetch(query, {userId});
 
     const connectedUserIds = connections.map((entry) => entry.connectedUserId);
@@ -59,7 +61,10 @@ const listIncomingRequests = async (req, res) => {
 
   try {
     const sanityClient = req.sanityClient;
-    const query = `*[_type == "connection" && connectedUserId == $userId && ${PENDING_STATUS_FILTER}] | order(createdAt desc)`;
+    const query = [
+      `*[_type == "connection" && connectedUserId == $userId && ${PENDING_STATUS_FILTER}]`,
+      "| order(createdAt desc)",
+    ].join(" ");
     const requests = await sanityClient.fetch(query, {userId});
 
     const requesterIds = requests.map((entry) => entry.userId);
@@ -286,10 +291,14 @@ const removeConnection = async (req, res) => {
 
   try {
     const sanityClient = req.sanityClient;
-    const forwardQuery = `*[_type == "connection" && userId == $userId && connectedUserId == $targetUserId][0]._id`;
+    const forwardQuery = [
+      "*[_type == \"connection\" && userId == $userId && connectedUserId == $targetUserId][0]._id",
+    ].join("");
     const forwardId = await sanityClient.fetch(forwardQuery, {userId, targetUserId});
 
-    const reverseQuery = `*[_type == "connection" && userId == $targetUserId && connectedUserId == $userId][0]._id`;
+    const reverseQuery = [
+      "*[_type == \"connection\" && userId == $targetUserId && connectedUserId == $userId][0]._id",
+    ].join("");
     const reverseId = await sanityClient.fetch(reverseQuery, {userId, targetUserId});
 
     if (!forwardId && !reverseId) {
