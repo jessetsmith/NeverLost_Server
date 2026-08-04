@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const {v4: uuidv4} = require("uuid");
+const {createUserAsset} = require("../services/userAssetService");
 
 const CONTENT_TYPES = {
   ".glb": "model/gltf-binary",
@@ -60,6 +61,33 @@ function buildPublicUrl(req, userId, filename) {
   return `${req.protocol}://${req.get("host")}/uploads/assets/${userId}/${filename}`;
 }
 
+function buildUploadResponse({url, storage, originalName, assetId, userAsset}) {
+  return {
+    url,
+    storage,
+    originalName,
+    ...(assetId ? {assetId} : {}),
+    ...(userAsset ? {userAsset} : {}),
+  };
+}
+
+async function saveToUserLibrary(req, {url, originalName, source = "upload"}) {
+  if (!req.sanityClient || !req.user?.id) return null;
+  try {
+    const baseName = originalName?.replace(/\.(glb|gltf)$/i, "") || "Uploaded Asset";
+    return await createUserAsset(req.sanityClient, {
+      userId: req.user.id,
+      name: baseName,
+      assetUrl: url,
+      source,
+      originalName,
+    });
+  } catch (err) {
+    console.warn("Could not save asset to user library:", err.message);
+    return null;
+  }
+}
+
 const uploadAsset = async (req, res) => {
   if (!req.file) {
     return res.status(400).json({error: "No file uploaded."});
@@ -81,12 +109,18 @@ const uploadAsset = async (req, res) => {
         filename: safeName,
         contentType,
       });
-      return res.status(201).json({
+      const userAsset = await saveToUserLibrary(req, {
+        url: asset.url,
+        originalName: req.file.originalname,
+        source: "upload",
+      });
+      return res.status(201).json(buildUploadResponse({
         url: asset.url,
         assetId: asset._id,
         originalName: req.file.originalname,
         storage: "sanity",
-      });
+        userAsset,
+      }));
     } catch (err) {
       console.warn("Sanity asset upload failed, using local storage:", err.message);
     }
@@ -96,11 +130,17 @@ const uploadAsset = async (req, res) => {
   try {
     saveLocalAsset(userId, req.file.buffer, safeName);
     const url = buildPublicUrl(req, userId, safeName);
-    return res.status(201).json({
+    const userAsset = await saveToUserLibrary(req, {
+      url,
+      originalName: req.file.originalname,
+      source: "upload",
+    });
+    return res.status(201).json(buildUploadResponse({
       url,
       originalName: req.file.originalname,
       storage: "local",
-    });
+      userAsset,
+    }));
   } catch (err) {
     console.error("Local asset upload error:", err);
     return res.status(500).json({error: "Failed to save asset. Please try again."});
@@ -148,5 +188,6 @@ module.exports = {
   uploadAsset,
   proxyAsset,
   normalizeAssetUrl,
+  buildPublicUrl,
   UPLOADS_ROOT,
 };

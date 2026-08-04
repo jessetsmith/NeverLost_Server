@@ -23,16 +23,22 @@ const {createClient} = require("@sanity/client");
 let layoutRoutes;
 let userRoutes;
 let assetRoutes;
+let sketchfabRoutes;
+let userAssetRoutes;
 try {
   layoutRoutes = require("./src/routes/layoutRoutes");
   userRoutes = require("./src/routes/userRoutes");
   assetRoutes = require("./src/routes/assetRoutes");
+  sketchfabRoutes = require("./src/routes/sketchfabRoutes");
+  userAssetRoutes = require("./src/routes/userAssetRoutes");
 } catch (error) {
   console.error("Error loading routes:", error);
   const expressRouter = require("express").Router;
   layoutRoutes = expressRouter();
   userRoutes = expressRouter();
   assetRoutes = expressRouter();
+  sketchfabRoutes = expressRouter();
+  userAssetRoutes = expressRouter();
 }
 
 // Load .env file for local development only
@@ -176,6 +182,8 @@ app.use("/uploads/assets", express.static(UPLOADS_ROOT, {
 app.use("/api/layouts", layoutRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/assets", assetRoutes);
+app.use("/api/sketchfab", sketchfabRoutes);
+app.use("/api/user-assets", userAssetRoutes);
 
 // Root Endpoint - Must be first for Cloud Run health checks
 // Cloud Run checks the root path to verify container is ready

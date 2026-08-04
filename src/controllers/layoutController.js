@@ -113,7 +113,7 @@ const getLayoutById = async (req, res) => {
 
 const updateLayout = async (req, res) => {
   const {layoutId} = req.params;
-  const {objects} = req.body; // Ensure objects are being received
+  const {objects, name, description} = req.body;
   const userId = req.user.id;
 
   try {
@@ -126,15 +126,25 @@ const updateLayout = async (req, res) => {
           .json({error: "Layout not found or access denied."});
     }
 
-    const updatedObjects = objects || existingLayout.objects;
+    const patch = {
+      objects: objects || existingLayout.objects,
+    };
 
-    await sanityClient.patch(layoutId).set({objects: updatedObjects}).commit();
+    if (typeof name === "string" && name.trim()) {
+      patch.name = name.trim();
+    }
+
+    if (typeof description === "string") {
+      patch.description = description.trim();
+    }
+
+    await sanityClient.patch(layoutId).set(patch).commit();
 
     res.status(200).json({
       layoutId: existingLayout._id,
-      name: existingLayout.name,
-      description: existingLayout.description,
-      objects: updatedObjects,
+      name: patch.name ?? existingLayout.name,
+      description: patch.description ?? existingLayout.description,
+      objects: patch.objects,
     });
   } catch (err) {
     console.error("Update Layout Error:", err);

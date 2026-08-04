@@ -7,10 +7,12 @@ const {createClient} = require("@sanity/client");
 const layoutRoutes = require("./routes/layoutRoutes");
 const userRoutes = require("./routes/userRoutes");
 const assetRoutes = require("./routes/assetRoutes");
+const sketchfabRoutes = require("./routes/sketchfabRoutes");
+const userAssetRoutes = require("./routes/userAssetRoutes");
 const {UPLOADS_ROOT} = require("./controllers/assetController");
 
-// Load environment variables from .env file
-dotenv.config();
+// Load environment variables from .env file (project root, not cwd)
+dotenv.config({path: path.join(__dirname, "../.env")});
 
 // Validate required environment variables
 if (!process.env.SANITY_PROJECT_ID) {
@@ -141,6 +143,8 @@ app.use("/uploads/assets", express.static(UPLOADS_ROOT, {
 app.use("/api/layouts", layoutRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/assets", assetRoutes);
+app.use("/api/sketchfab", sketchfabRoutes);
+app.use("/api/user-assets", userAssetRoutes);
 
 // Root Endpoint
 app.get("/", (req, res) => {
@@ -168,4 +172,10 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Asset uploads: POST /api/assets/upload`);
   console.log(`Asset proxy:   GET  /api/assets/proxy?url=...`);
+  const sketchfabSearch = Boolean(process.env.SKETCHFAB_API_TOKEN?.trim());
+  const sketchfabOAuth = Boolean(
+      process.env.SKETCHFAB_CLIENT_ID?.trim() && process.env.SKETCHFAB_CLIENT_SECRET?.trim(),
+  );
+  console.log(`Sketchfab search: ${sketchfabSearch ? "configured" : "NOT configured (set SKETCHFAB_API_TOKEN)"}`);
+  console.log(`Sketchfab OAuth:  ${sketchfabOAuth ? "configured" : "NOT configured (set SKETCHFAB_CLIENT_ID/SECRET)"}`);
 });

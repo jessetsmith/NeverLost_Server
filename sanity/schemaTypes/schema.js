@@ -82,10 +82,63 @@ export const schemaTypes = [
                   {name: 'z', type: 'number', title: 'Z'},
                 ],
               },
+              {
+                name: 'notes',
+                title: 'Notes',
+                type: 'text',
+              },
+              {
+                name: 'properties',
+                title: 'Properties',
+                type: 'array',
+                of: [
+                  {
+                    type: 'object',
+                    fields: [
+                      {name: 'key', type: 'string', title: 'Key'},
+                      {name: 'value', type: 'string', title: 'Value'},
+                    ],
+                  },
+                ],
+              },
+              {
+                name: 'log',
+                title: 'Log',
+                type: 'array',
+                of: [
+                  {
+                    type: 'object',
+                    fields: [
+                      {name: 'message', type: 'text', title: 'Message'},
+                      {name: 'createdAt', type: 'datetime', title: 'Created At'},
+                    ],
+                  },
+                ],
+              },
             ],
           },
         ],
       },
+    ],
+  },
+  {
+    name: 'userAsset',
+    title: 'User Asset',
+    type: 'document',
+    fields: [
+      {name: 'userId', title: 'User ID', type: 'string'},
+      {name: 'name', title: 'Name', type: 'string'},
+      {name: 'assetUrl', title: '3D Asset URL', type: 'url'},
+      {
+        name: 'source',
+        title: 'Source',
+        type: 'string',
+        options: {list: ['upload', 'sketchfab', 'url']},
+      },
+      {name: 'thumbnailUrl', title: 'Thumbnail URL', type: 'url'},
+      {name: 'sketchfabUid', title: 'Sketchfab UID', type: 'string'},
+      {name: 'originalName', title: 'Original Filename', type: 'string'},
+      {name: 'createdAt', title: 'Created At', type: 'datetime'},
     ],
   },
   {
