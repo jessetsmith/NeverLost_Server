@@ -11,4 +11,7 @@ function assertJwtSecretConfigured() {
   getJwtSecret();
 }
 
-module.exports = {getJwtSecret, assertJwtSecretConfigured};
+/** Access token lifetime — long enough to survive browser refreshes. */
+const JWT_EXPIRES_IN = "7d";
+
+module.exports = {getJwtSecret, assertJwtSecretConfigured, JWT_EXPIRES_IN};

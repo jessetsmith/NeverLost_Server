@@ -24,4 +24,20 @@ const apiLimiter = rateLimit({
   message: {error: "Too many requests. Please try again later."},
 });
 
-module.exports = {authLimiter, uploadLimiter, apiLimiter};
+const inviteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {error: "Too many invites. Please try again later."},
+});
+
+const messageLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {error: "Too many messages. Please try again later."},
+});
+
+module.exports = {authLimiter, uploadLimiter, apiLimiter, inviteLimiter, messageLimiter};

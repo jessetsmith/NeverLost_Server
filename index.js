@@ -26,12 +26,18 @@ let userRoutes;
 let assetRoutes;
 let sketchfabRoutes;
 let userAssetRoutes;
+let notificationRoutes;
+let messageRoutes;
+let connectionRoutes;
 try {
   layoutRoutes = require("./src/routes/layoutRoutes");
   userRoutes = require("./src/routes/userRoutes");
   assetRoutes = require("./src/routes/assetRoutes");
   sketchfabRoutes = require("./src/routes/sketchfabRoutes");
   userAssetRoutes = require("./src/routes/userAssetRoutes");
+  notificationRoutes = require("./src/routes/notificationRoutes");
+  messageRoutes = require("./src/routes/messageRoutes");
+  connectionRoutes = require("./src/routes/connectionRoutes");
 } catch (error) {
   console.error("Error loading routes:", error);
   const expressRouter = require("express").Router;
@@ -40,6 +46,9 @@ try {
   assetRoutes = expressRouter();
   sketchfabRoutes = expressRouter();
   userAssetRoutes = expressRouter();
+  notificationRoutes = expressRouter();
+  messageRoutes = expressRouter();
+  connectionRoutes = expressRouter();
 }
 
 // Load .env file for local development only
@@ -64,6 +73,7 @@ if (!process.env.FUNCTION_TARGET && !process.env.K_SERVICE) {
 // Values are accessed via process.env at runtime (not .value())
 let sanityToken;
 let jwtSecret;
+let sketchfabApiToken;
 
 try {
   // Register string parameters (values available via process.env)
@@ -77,9 +87,30 @@ try {
     description: "Sanity.io dataset name",
   });
 
+  defineString("SKETCHFAB_REDIRECT_URI", {
+    default: "https://jessetsmith.github.io/NeverLost/library",
+    description: "Sketchfab OAuth redirect URI (production GitHub Pages)",
+  });
+
+  defineString("SKETCHFAB_ALLOWED_ORIGINS", {
+    default: "https://jessetsmith.github.io",
+    description: "Comma-separated origins allowed for Sketchfab OAuth redirect",
+  });
+
+  defineString("SKETCHFAB_CLIENT_ID", {
+    default: "",
+    description: "Sketchfab OAuth client ID (optional)",
+  });
+
+  defineString("SKETCHFAB_CLIENT_SECRET", {
+    default: "",
+    description: "Sketchfab OAuth client secret (optional; prefer SKETCHFAB_CLIENT_SECRET secret)",
+  });
+
   // Register secrets (values available via process.env when deployed)
   sanityToken = defineSecret("SANITY_TOKEN");
   jwtSecret = defineSecret("JWT_SECRET");
+  sketchfabApiToken = defineSecret("SKETCHFAB_API_TOKEN");
 } catch (error) {
   console.error("Error defining Firebase parameters:", error);
   // Continue without secrets - function will still export
@@ -173,7 +204,15 @@ app.use((req, res, next) => {
 
 // Serve locally uploaded assets (fallback storage for dev / when Sanity upload fails)
 const {UPLOADS_ROOT} = require("./src/controllers/assetController");
+const {PROFILES_ROOT} = require("./src/services/profileImageService");
 app.use("/uploads/assets", express.static(UPLOADS_ROOT, {
+  setHeaders(res) {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Cross-Origin-Resource-Policy", "cross-origin");
+  },
+}));
+
+app.use("/uploads/profiles", express.static(PROFILES_ROOT, {
   setHeaders(res) {
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Cross-Origin-Resource-Policy", "cross-origin");
@@ -186,6 +225,9 @@ app.use("/api/users", userRoutes);
 app.use("/api/assets", assetRoutes);
 app.use("/api/sketchfab", sketchfabRoutes);
 app.use("/api/user-assets", userAssetRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/connections", connectionRoutes);
 
 // Root Endpoint - Must be first for Cloud Run health checks
 // Cloud Run checks the root path to verify container is ready
@@ -215,6 +257,9 @@ app.use((err, req, res, next) => {
   if (err.message === "Only .glb and .gltf files are allowed.") {
     return res.status(400).json({error: err.message});
   }
+  if (err.message === "Only JPEG, PNG, GIF, and WebP images are allowed.") {
+    return res.status(400).json({error: err.message});
+  }
   console.error("Error:", err.stack);
   res.status(500).json({error: "Something went wrong!"});
 });
@@ -237,6 +282,9 @@ const functionConfig = {
 // Secrets must be defined at module load time for Firebase Functions v2
 if (sanityToken && jwtSecret) {
   functionConfig.secrets = [sanityToken, jwtSecret];
+  if (sketchfabApiToken) {
+    functionConfig.secrets.push(sketchfabApiToken);
+  }
 }
 
 // Export the function IMMEDIATELY - this is critical for Cloud Run

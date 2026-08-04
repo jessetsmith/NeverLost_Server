@@ -5,25 +5,37 @@ const {
   getLayoutById,
   updateLayout,
   deleteLayout,
-  getAllLayouts, // Add this import
+  getAllLayouts,
+  exploreLayouts,
+  publishLayout,
+  unpublishLayout,
 } = require("../controllers/layoutController");
-
+const {
+  inviteCollaborator,
+  acceptInvite,
+  declineInvite,
+  removeCollaborator,
+  getCollaborators,
+} = require("../controllers/collaborationController");
 const {authenticate} = require("../middleware/authenticate");
+const {inviteLimiter} = require("../middleware/security");
 
-// Create Layout Route
+router.get("/explore", authenticate, exploreLayouts);
+
 router.post("/", authenticate, createLayout);
+router.get("/", authenticate, getAllLayouts);
 
-// Get All Layouts Route
-router.get("/", authenticate, getAllLayouts); // Add this route
+router.post("/invites/:layoutId/accept", authenticate, acceptInvite);
+router.post("/invites/:layoutId/decline", authenticate, declineInvite);
 
-// Get Layout by ID Route
+router.put("/:layoutId/publish", authenticate, publishLayout);
+router.put("/:layoutId/unpublish", authenticate, unpublishLayout);
+router.post("/:layoutId/invites", authenticate, inviteLimiter, inviteCollaborator);
+router.get("/:layoutId/collaborators", authenticate, getCollaborators);
+router.delete("/:layoutId/collaborators/:userId", authenticate, removeCollaborator);
+
 router.get("/:layoutId", authenticate, getLayoutById);
-
-// Update Layout Route
-// Ensure this route is configured
 router.put("/:layoutId", authenticate, updateLayout);
-
-// Delete Layout Route
 router.delete("/:layoutId", authenticate, deleteLayout);
 
 module.exports = router;

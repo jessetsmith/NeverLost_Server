@@ -9,7 +9,11 @@ const userRoutes = require("./routes/userRoutes");
 const assetRoutes = require("./routes/assetRoutes");
 const sketchfabRoutes = require("./routes/sketchfabRoutes");
 const userAssetRoutes = require("./routes/userAssetRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+const connectionRoutes = require("./routes/connectionRoutes");
 const {UPLOADS_ROOT} = require("./controllers/assetController");
+const {PROFILES_ROOT} = require("./services/profileImageService");
 
 // Load environment variables — secrets in .env.local only
 dotenv.config({path: path.join(__dirname, "../.env.local")});
@@ -109,12 +113,22 @@ app.use("/uploads/assets", express.static(UPLOADS_ROOT, {
   },
 }));
 
+app.use("/uploads/profiles", express.static(PROFILES_ROOT, {
+  setHeaders(res) {
+    res.set("Access-Control-Allow-Origin", "http://localhost:5173");
+    res.set("Cross-Origin-Resource-Policy", "cross-origin");
+  },
+}));
+
 // Routes
 app.use("/api/layouts", layoutRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/assets", assetRoutes);
 app.use("/api/sketchfab", sketchfabRoutes);
 app.use("/api/user-assets", userAssetRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/connections", connectionRoutes);
 
 // Root Endpoint
 app.get("/", (req, res) => {
@@ -132,6 +146,9 @@ app.use((err, req, res, next) => {
   if (err.message === "Only .glb and .gltf files are allowed.") {
     return res.status(400).json({error: err.message});
   }
+  if (err.message === "Only JPEG, PNG, GIF, and WebP images are allowed.") {
+    return res.status(400).json({error: err.message});
+  }
   console.error(err.stack);
   res.status(500).send("Something broke!");
 });
@@ -140,6 +157,8 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`User profile:  GET  /api/users/profile`);
+  console.log(`Session refresh: POST /api/users/session/refresh`);
   console.log(`Asset uploads: POST /api/assets/upload`);
   console.log(`Asset proxy:   GET  /api/assets/proxy?url=...`);
   const sketchfabSearch = Boolean(process.env.SKETCHFAB_API_TOKEN?.trim());
