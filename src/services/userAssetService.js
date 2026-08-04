@@ -1,5 +1,22 @@
 const {v4: uuidv4} = require("uuid");
 
+function normalizeSketchfabCredit(credit) {
+  if (!credit || typeof credit !== "object") return null;
+
+  const modelName = credit.modelName?.trim();
+  const authorName = credit.authorName?.trim();
+  if (!modelName || !authorName) return null;
+
+  return {
+    modelName,
+    modelUrl: credit.modelUrl?.trim() || null,
+    authorName,
+    authorUrl: credit.authorUrl?.trim() || null,
+    licenseLabel: credit.licenseLabel?.trim() || null,
+    licenseUrl: credit.licenseUrl?.trim() || null,
+  };
+}
+
 function normalizeAsset(doc) {
   return {
     _id: doc._id,
@@ -8,6 +25,7 @@ function normalizeAsset(doc) {
     source: doc.source || "upload",
     thumbnailUrl: doc.thumbnailUrl || null,
     sketchfabUid: doc.sketchfabUid || null,
+    sketchfabCredit: normalizeSketchfabCredit(doc.sketchfabCredit),
     originalName: doc.originalName || null,
     createdAt: doc.createdAt || null,
   };
@@ -15,7 +33,8 @@ function normalizeAsset(doc) {
 
 async function listUserAssets(sanityClient, userId) {
   const query = `*[_type == "userAsset" && userId == $userId] | order(createdAt desc) {
-    _id, name, assetUrl, source, thumbnailUrl, sketchfabUid, originalName, createdAt
+    _id, name, assetUrl, source, thumbnailUrl, sketchfabUid,
+    sketchfabCredit, originalName, createdAt
   }`;
   const docs = await sanityClient.fetch(query, {userId});
   return docs.map(normalizeAsset);
@@ -23,7 +42,8 @@ async function listUserAssets(sanityClient, userId) {
 
 async function findBySketchfabUid(sanityClient, userId, sketchfabUid) {
   const query = `*[_type == "userAsset" && userId == $userId && sketchfabUid == $sketchfabUid][0] {
-    _id, name, assetUrl, source, thumbnailUrl, sketchfabUid, originalName, createdAt
+    _id, name, assetUrl, source, thumbnailUrl, sketchfabUid,
+    sketchfabCredit, originalName, createdAt
   }`;
   const doc = await sanityClient.fetch(query, {userId, sketchfabUid});
   return doc ? normalizeAsset(doc) : null;
@@ -36,6 +56,7 @@ async function createUserAsset(sanityClient, {
   source = "upload",
   thumbnailUrl = null,
   sketchfabUid = null,
+  sketchfabCredit = null,
   originalName = null,
 }) {
   if (!assetUrl?.trim()) {
@@ -50,11 +71,14 @@ async function createUserAsset(sanityClient, {
   const trimmedUrl = assetUrl.trim();
   const existingByUrl = await sanityClient.fetch(
       `*[_type == "userAsset" && userId == $userId && assetUrl == $assetUrl][0] {
-        _id, name, assetUrl, source, thumbnailUrl, sketchfabUid, originalName, createdAt
+        _id, name, assetUrl, source, thumbnailUrl, sketchfabUid,
+        sketchfabCredit, originalName, createdAt
       }`,
       {userId, assetUrl: trimmedUrl},
   );
   if (existingByUrl) return normalizeAsset(existingByUrl);
+
+  const normalizedCredit = normalizeSketchfabCredit(sketchfabCredit);
 
   const doc = {
     _id: uuidv4(),
@@ -68,6 +92,10 @@ async function createUserAsset(sanityClient, {
     originalName,
     createdAt: new Date().toISOString(),
   };
+
+  if (normalizedCredit) {
+    doc.sketchfabCredit = normalizedCredit;
+  }
 
   const created = await sanityClient.create(doc);
   return normalizeAsset(created);
@@ -124,6 +152,10 @@ async function addAssetToLayout(sanityClient, userId, assetId, layoutId, options
     scale: {x: 1, y: 1, z: 1},
   };
 
+  if (asset.sketchfabCredit) {
+    newObject.sketchfabCredit = asset.sketchfabCredit;
+  }
+
   const updatedObjects = [...(layout.objects || []), newObject];
   await sanityClient.patch(layoutId).set({objects: updatedObjects}).commit();
 
@@ -165,4 +197,5 @@ module.exports = {
   addAssetToLayout,
   syncAssetsFromLayouts,
   normalizeAsset,
+  normalizeSketchfabCredit,
 };

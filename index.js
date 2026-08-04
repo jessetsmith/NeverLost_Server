@@ -13,8 +13,8 @@ const express = require("express");
 const cors = require("cors");
 const {applyExpressSecurity} = require("./src/middleware/applyExpressSecurity");
 
-// Environment configuration
-const dotenv = require("dotenv");
+// Environment configuration (Cloud Run skips file loading; see scripts/loadEnv.js)
+const {loadLocalEnv} = require("./scripts/loadEnv");
 
 // Sanity client
 const {createClient} = require("@sanity/client");
@@ -51,18 +51,10 @@ try {
   connectionRoutes = expressRouter();
 }
 
-// Load .env file for local development only
-// Note: PORT, SANITY_TOKEN, and JWT_SECRET should NOT be in .env
-// - PORT is reserved by Firebase Functions/Cloud Run (must be 8080)
-// - SANITY_TOKEN and JWT_SECRET are defined as secrets and will conflict
-// For local dev, use .env.local file (not tracked by git) for secrets
-// IMPORTANT: Only load .env in local dev to avoid conflicts with Cloud Run
-// Cloud Run will provide PORT=8080 and secrets via environment variables
+// Load .env files for local development only (see scripts/loadEnv.js)
 if (!process.env.FUNCTION_TARGET && !process.env.K_SERVICE) {
-  // Only load .env in local development (not in Cloud Run)
   try {
-    dotenv.config({path: ".env.local"});
-    dotenv.config(); // .env will override .env.local for non-secret values
+    loadLocalEnv();
   } catch (error) {
     // Ignore .env loading errors - not critical for Cloud Run
   }
@@ -98,13 +90,13 @@ try {
   });
 
   defineString("SKETCHFAB_CLIENT_ID", {
-    default: "",
-    description: "Sketchfab OAuth client ID (optional)",
+    default: "BLdjWpdx9hBOUfyCjU07J6tutBGsuMy5UVDyYizT",
+    description: "Sketchfab OAuth client ID",
   });
 
   defineString("SKETCHFAB_CLIENT_SECRET", {
     default: "",
-    description: "Sketchfab OAuth client secret (optional; prefer SKETCHFAB_CLIENT_SECRET secret)",
+    description: "Sketchfab OAuth client secret (set in Firebase Console or .env.local)",
   });
 
   // Register secrets (values available via process.env when deployed)

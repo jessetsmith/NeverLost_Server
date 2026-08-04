@@ -108,10 +108,57 @@ function normalizeSearchResult(model) {
     viewerUrl: model.viewerUrl,
     thumbnailUrl: thumb?.url || null,
     author: model.user?.displayName || model.user?.username || "Unknown",
+    authorUrl: model.user?.profileUrl || null,
     license: model.license?.label || null,
+    licenseUrl: model.license?.url || null,
     faceCount: model.faceCount,
     vertexCount: model.vertexCount,
   };
+}
+
+function buildSketchfabCredit(metadata) {
+  if (!metadata) return null;
+
+  const modelName = metadata.modelName || metadata.name;
+  const modelUrl = metadata.modelUrl || metadata.viewerUrl;
+  const authorName = metadata.authorName ||
+    metadata.user?.displayName ||
+    metadata.user?.username;
+  const authorUrl = metadata.authorUrl || metadata.user?.profileUrl;
+  const licenseLabel = metadata.licenseLabel || metadata.license?.label;
+  const licenseUrl = metadata.licenseUrl || metadata.license?.url;
+
+  if (!modelName || !authorName) return null;
+
+  return {
+    modelName,
+    modelUrl: modelUrl || null,
+    authorName,
+    authorUrl: authorUrl || null,
+    licenseLabel: licenseLabel || null,
+    licenseUrl: licenseUrl || null,
+  };
+}
+
+async function fetchModelMetadata(modelUid, accessToken) {
+  const response = await fetch(`${SKETCHFAB_API}/models/${modelUid}`, {
+    headers: sketchfabHeaders(accessToken, "oauth"),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Sketchfab model metadata failed (${response.status}): ${body}`);
+  }
+
+  const data = await response.json();
+  return buildSketchfabCredit({
+    modelName: data.name,
+    modelUrl: data.viewerUrl,
+    authorName: data.user?.displayName || data.user?.username,
+    authorUrl: data.user?.profileUrl,
+    licenseLabel: data.license?.label,
+    licenseUrl: data.license?.url,
+  });
 }
 
 function buildOAuthUrl(state, redirectUri) {
@@ -286,6 +333,8 @@ module.exports = {
   buildOAuthUrl,
   exchangeOAuthCode,
   importModelToStorage,
+  fetchModelMetadata,
+  buildSketchfabCredit,
   getApiToken,
   getOAuthConfig,
   isAllowedRedirectUri,

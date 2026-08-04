@@ -1,8 +1,7 @@
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const multer = require("multer");
-const path = require("path");
+const {loadLocalEnv} = require("../scripts/loadEnv");
 const {createClient} = require("@sanity/client");
 const layoutRoutes = require("./routes/layoutRoutes");
 const userRoutes = require("./routes/userRoutes");
@@ -15,9 +14,8 @@ const connectionRoutes = require("./routes/connectionRoutes");
 const {UPLOADS_ROOT} = require("./controllers/assetController");
 const {PROFILES_ROOT} = require("./services/profileImageService");
 
-// Load environment variables — secrets in .env.local only
-dotenv.config({path: path.join(__dirname, "../.env.local")});
-dotenv.config({path: path.join(__dirname, "../.env")});
+// Load env profile (local vs production) + secrets from .env.local
+const runtimeEnv = loadLocalEnv();
 
 const {assertJwtSecretConfigured} = require("./utils/jwtSecret");
 const {applyExpressSecurity} = require("./middleware/applyExpressSecurity");
@@ -157,6 +155,10 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`Env profile: ${runtimeEnv.profile} (${runtimeEnv.source})`);
+  if (process.env.SKETCHFAB_REDIRECT_URI) {
+    console.log(`Sketchfab redirect: ${process.env.SKETCHFAB_REDIRECT_URI}`);
+  }
   console.log(`User profile:  GET  /api/users/profile`);
   console.log(`Session refresh: POST /api/users/session/refresh`);
   console.log(`Asset uploads: POST /api/assets/upload`);

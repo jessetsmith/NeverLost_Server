@@ -3,6 +3,7 @@ const {
   buildOAuthUrl,
   exchangeOAuthCode,
   importModelToStorage,
+  fetchModelMetadata,
   getApiToken,
   getOAuthConfig,
 } = require("../services/sketchfabService");
@@ -11,6 +12,7 @@ const {
   createUserAsset,
   findBySketchfabUid,
   addAssetToLayout,
+  normalizeAsset,
 } = require("../services/userAssetService");
 
 const search = async (req, res) => {
@@ -85,6 +87,13 @@ async function resolveSketchfabUserAsset({
   req,
 }) {
   let userAsset = await findBySketchfabUid(sanityClient, userId, modelUid);
+  let sketchfabCredit = null;
+
+  try {
+    sketchfabCredit = await fetchModelMetadata(modelUid, sketchfabToken);
+  } catch (err) {
+    console.warn("Could not fetch Sketchfab attribution metadata:", err.message);
+  }
 
   if (!userAsset) {
     const stored = await importModelToStorage({
@@ -97,12 +106,19 @@ async function resolveSketchfabUserAsset({
 
     userAsset = await createUserAsset(sanityClient, {
       userId,
-      name: modelName || "Sketchfab Asset",
+      name: modelName || sketchfabCredit?.modelName || "Sketchfab Asset",
       assetUrl: stored.url,
       source: "sketchfab",
       thumbnailUrl: thumbnailUrl || null,
       sketchfabUid: modelUid,
+      sketchfabCredit,
     });
+  } else if (sketchfabCredit && !userAsset.sketchfabCredit) {
+    const updated = await sanityClient
+        .patch(userAsset._id)
+        .set({sketchfabCredit})
+        .commit();
+    userAsset = normalizeAsset(updated);
   }
 
   return userAsset;
