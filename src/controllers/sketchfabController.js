@@ -6,6 +6,7 @@ const {
   getApiToken,
   getOAuthConfig,
 } = require("../services/sketchfabService");
+const {assertValidSketchfabUid} = require("../utils/pathSecurity");
 const {
   createUserAsset,
   findBySketchfabUid,
@@ -16,7 +17,8 @@ const search = async (req, res) => {
   try {
     if (!getApiToken()) {
       return res.status(503).json({
-        error: "Sketchfab search is not configured. Add SKETCHFAB_API_TOKEN to the server environment.",
+        error: "Sketchfab search is not configured. " +
+          "Add SKETCHFAB_API_TOKEN to the server environment.",
       });
     }
 
@@ -114,6 +116,12 @@ const saveModel = async (req, res) => {
     return res.status(400).json({error: "modelUid is required."});
   }
 
+  try {
+    assertValidSketchfabUid(modelUid);
+  } catch {
+    return res.status(400).json({error: "Invalid Sketchfab model UID."});
+  }
+
   if (!sketchfabToken) {
     return res.status(401).json({
       error: "Sketchfab account required. Connect your Sketchfab account to download models.",
@@ -134,7 +142,7 @@ const saveModel = async (req, res) => {
     res.status(201).json({userAsset, saved: true});
   } catch (err) {
     console.error("Sketchfab save error:", err);
-    res.status(502).json({error: err.message || "Failed to save Sketchfab model."});
+    res.status(502).json({error: "Failed to save Sketchfab model."});
   }
 };
 
@@ -145,6 +153,12 @@ const importModel = async (req, res) => {
 
   if (!modelUid) {
     return res.status(400).json({error: "modelUid is required."});
+  }
+
+  try {
+    assertValidSketchfabUid(modelUid);
+  } catch {
+    return res.status(400).json({error: "Invalid Sketchfab model UID."});
   }
 
   if (!sketchfabToken) {
@@ -186,7 +200,7 @@ const importModel = async (req, res) => {
     });
   } catch (err) {
     console.error("Sketchfab import error:", err);
-    res.status(502).json({error: err.message || "Failed to import Sketchfab model."});
+    res.status(502).json({error: "Failed to import Sketchfab model."});
   }
 };
 

@@ -1,5 +1,41 @@
 # Firebase Functions Deployment Troubleshooting
 
+## Common Error: Secret overlaps non-secret environment variable
+
+```
+Secret environment variable overlaps non secret environment variable: SANITY_TOKEN
+```
+
+This happens when `SANITY_TOKEN` (or `JWT_SECRET`) is defined **twice**:
+
+1. As a Firebase **secret** (`defineSecret` in `index.js` + `firebase functions:secrets:set`)
+2. As a plain **environment variable** (usually from `.env` during deploy, or Firebase Console)
+
+### Fix
+
+1. **Remove secrets from `.env`** — keep only non-sensitive values there:
+   ```
+   SANITY_PROJECT_ID=492nxyas
+   SANITY_DATASET=production
+   SKETCHFAB_API_TOKEN=...
+   ```
+2. **Put secrets in `.env.local`** (local dev only — not deployed):
+   ```
+   SANITY_TOKEN=your-token
+   JWT_SECRET=your-jwt-secret
+   ```
+3. **Ensure Firebase secrets are set** (production):
+   ```bash
+   firebase functions:secrets:set SANITY_TOKEN
+   firebase functions:secrets:set JWT_SECRET
+   ```
+4. **Remove duplicates in Google Cloud Console** (if deploy still fails):
+   - [Cloud Run → api → Edit → Variables & Secrets](https://console.cloud.google.com/run)
+   - Delete `SANITY_TOKEN` / `JWT_SECRET` from **Environment variables** (keep under **Secrets** only)
+5. Redeploy: `npm run deploy`
+
+---
+
 ## Common Error: Container Failed to Start on PORT=8080
 
 This error occurs when Cloud Run (which powers Firebase Functions v2) cannot start the container within the timeout period.

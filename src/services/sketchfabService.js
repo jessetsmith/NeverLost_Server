@@ -3,6 +3,7 @@ const {v4: uuidv4} = require("uuid");
 const fs = require("fs");
 const path = require("path");
 const {UPLOADS_ROOT, buildPublicUrl} = require("../controllers/assetController");
+const {assertValidSketchfabUid, resolvePathUnder} = require("../utils/pathSecurity");
 
 const SKETCHFAB_API = "https://api.sketchfab.com/v3";
 
@@ -18,14 +19,20 @@ function getOAuthConfig() {
   };
 }
 
+function normalizeRedirectUri(uri) {
+  const parsed = new URL(uri);
+  return `${parsed.origin}${parsed.pathname.replace(/\/$/, "")}`;
+}
+
 function isAllowedRedirectUri(uri) {
   try {
     const parsed = new URL(uri);
     if (!["http:", "https:"].includes(parsed.protocol)) return false;
     if (!parsed.pathname.endsWith("/library")) return false;
 
+    const normalized = normalizeRedirectUri(uri);
     const configured = getOAuthConfig().redirectUri;
-    if (configured && uri === configured) return true;
+    if (configured && normalized === normalizeRedirectUri(configured)) return true;
 
     if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
       return true;
@@ -36,7 +43,7 @@ function isAllowedRedirectUri(uri) {
         .map((origin) => origin.trim())
         .filter(Boolean);
 
-    return allowedOrigins.some((origin) => uri.startsWith(origin));
+    return allowedOrigins.some((origin) => normalized === normalizeRedirectUri(origin));
   } catch {
     return false;
   }
@@ -92,8 +99,8 @@ async function searchModels({query, cursor, count = 24}) {
 }
 
 function normalizeSearchResult(model) {
-  const thumb = model.thumbnails?.images?.find((img) => img.width >= 200)
-    || model.thumbnails?.images?.[0];
+  const thumb = model.thumbnails?.images?.find((img) => img.width >= 200) ||
+    model.thumbnails?.images?.[0];
 
   return {
     uid: model.uid,
@@ -181,15 +188,18 @@ async function downloadArchive(url) {
 }
 
 function saveExtractedModel(userId, modelUid, zipBuffer, req) {
+  assertValidSketchfabUid(modelUid);
+
   const zip = new AdmZip(zipBuffer);
   const entries = zip.getEntries().filter((entry) => !entry.isDirectory);
+
+  const userDir = resolvePathUnder(UPLOADS_ROOT, String(userId));
+  fs.mkdirSync(userDir, {recursive: true});
 
   const glbEntry = entries.find((entry) => entry.entryName.toLowerCase().endsWith(".glb"));
   if (glbEntry) {
     const filename = `${modelUid}-${uuidv4().slice(0, 8)}.glb`;
-    const userDir = path.join(UPLOADS_ROOT, String(userId));
-    fs.mkdirSync(userDir, {recursive: true});
-    const filePath = path.join(userDir, filename);
+    const filePath = resolvePathUnder(userDir, filename);
     fs.writeFileSync(filePath, glbEntry.getData());
     return {
       url: buildPublicUrl(req, userId, filename),
@@ -203,9 +213,15 @@ function saveExtractedModel(userId, modelUid, zipBuffer, req) {
     throw new Error("Sketchfab archive did not contain a GLB or glTF file.");
   }
 
-  const extractDir = path.join(UPLOADS_ROOT, String(userId), `sketchfab-${modelUid}-${uuidv4().slice(0, 8)}`);
+  const extractDirName = `sketchfab-${modelUid}-${uuidv4().slice(0, 8)}`;
+  const extractDir = resolvePathUnder(userDir, extractDirName);
   fs.mkdirSync(extractDir, {recursive: true});
-  zip.extractAllTo(extractDir, true);
+
+  for (const entry of entries) {
+    const entryPath = resolvePathUnder(extractDir, entry.entryName);
+    fs.mkdirSync(path.dirname(entryPath), {recursive: true});
+    fs.writeFileSync(entryPath, entry.getData());
+  }
 
   const gltfFile = findFileRecursive(extractDir, ".gltf");
   if (!gltfFile) {
@@ -235,6 +251,7 @@ function findFileRecursive(dir, ext) {
 }
 
 async function importModelToStorage({modelUid, accessToken, userId, req, sanityClient}) {
+  assertValidSketchfabUid(modelUid);
   const downloadInfo = await getDownloadLinks(modelUid, accessToken);
   const gltfArchive = downloadInfo.gltf;
   if (!gltfArchive?.url) {
@@ -244,7 +261,12 @@ async function importModelToStorage({modelUid, accessToken, userId, req, sanityC
   const zipBuffer = await downloadArchive(gltfArchive.url);
   const localAsset = saveExtractedModel(userId, modelUid, zipBuffer, req);
 
-  if (sanityClient && process.env.SANITY_TOKEN && localAsset.format === "glb" && localAsset.filePath) {
+  if (
+    sanityClient &&
+    process.env.SANITY_TOKEN &&
+    localAsset.format === "glb" &&
+    localAsset.filePath
+  ) {
     try {
       const asset = await sanityClient.assets.upload("file", fs.readFileSync(localAsset.filePath), {
         filename: `${modelUid}.glb`,

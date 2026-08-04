@@ -1,6 +1,8 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const Joi = require("joi");
+const {getJwtSecret} = require("../utils/jwtSecret");
+const {JWT_ALGORITHM} = require("../utils/assetUrlSecurity");
 
 // Registration Controller
 const registerUser = async (req, res) => {
@@ -8,7 +10,7 @@ const registerUser = async (req, res) => {
   const schema = Joi.object({
     username: Joi.string().min(3).max(30).required(),
     email: Joi.string().email().required(),
-    password: Joi.string().min(6).required(),
+    password: Joi.string().min(8).max(128).required(),
   });
 
   // Validate request body against schema
@@ -27,7 +29,9 @@ const registerUser = async (req, res) => {
     const existingUser = await sanityClient.fetch(existingUserQuery, {email});
 
     if (existingUser) {
-      return res.status(400).json({error: "User with this email already exists."});
+      return res.status(400).json({
+        error: "Registration failed. Email or username may already be in use.",
+      });
     }
 
     // Check if username is already taken
@@ -35,7 +39,9 @@ const registerUser = async (req, res) => {
     const existingUsername = await sanityClient.fetch(existingUsernameQuery, {username});
 
     if (existingUsername) {
-      return res.status(400).json({error: "Username is already taken."});
+      return res.status(400).json({
+        error: "Registration failed. Email or username may already be in use.",
+      });
     }
 
     // Hash password
@@ -56,8 +62,8 @@ const registerUser = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
         {id: createdUser._id, email: createdUser.email},
-        process.env.JWT_SECRET || "fallback-secret-key",
-        {expiresIn: "1h"},
+        getJwtSecret(),
+        {expiresIn: "1h", algorithm: JWT_ALGORITHM},
     );
 
     // Respond with user data and token (Sanity returns _id, we map it to id for frontend)
@@ -102,7 +108,7 @@ const loginUser = async (req, res) => {
   // Define validation schema using Joi
   const schema = Joi.object({
     email: Joi.string().email().required(),
-    password: Joi.string().min(6).required(),
+    password: Joi.string().min(1).max(128).required(),
   });
 
   // Validate request body against schema
@@ -133,8 +139,8 @@ const loginUser = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
         {id: user._id, email: user.email},
-        process.env.JWT_SECRET || "fallback-secret-key",
-        {expiresIn: "1h"},
+        getJwtSecret(),
+        {expiresIn: "1h", algorithm: JWT_ALGORITHM},
     );
 
     // Respond with user data and token (Sanity returns _id, we map it to id for frontend)

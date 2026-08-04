@@ -1,33 +1,32 @@
 const jwt = require("jsonwebtoken");
+const {getJwtSecret, assertJwtSecretConfigured} = require("../utils/jwtSecret");
+const {JWT_ALGORITHM} = require("../utils/assetUrlSecurity");
+
+try {
+  assertJwtSecretConfigured();
+} catch (err) {
+  if (!process.env.K_SERVICE && !process.env.FUNCTION_TARGET) {
+    console.warn(`⚠️  ${err.message} — auth routes will fail until JWT_SECRET is set.`);
+  }
+}
 
 const authenticate = (req, res, next) => {
   const authHeader = req.header("Authorization");
-  const token = authHeader && authHeader.split(" ")[1]; // Expected format: Bearer <token>
+  const token = authHeader && authHeader.split(" ")[1];
 
   if (!token) {
     return res.status(401).json({error: "Access denied. No token provided."});
   }
 
   try {
-    // Support both Firebase Functions v2 secrets and process.env
-    let jwtSecret = process.env.JWT_SECRET;
-
-    // Try to get from Firebase Functions v2 secrets if not in process.env
-    if (!jwtSecret) {
-      try {
-        // In Firebase Functions v2, secrets are passed via process.env
-        // The defineSecret automatically makes them available as env vars
-        jwtSecret = process.env.JWT_SECRET;
-      } catch (e) {
-        // Not running in Firebase environment, that's okay
-      }
-    }
-
-    jwtSecret = jwtSecret || "fallback-secret-key";
-    const decoded = jwt.verify(token, jwtSecret);
-    req.user = decoded; // This will contain { id, email } from the JWT payload
+    const decoded = jwt.verify(token, getJwtSecret(), {algorithms: [JWT_ALGORITHM]});
+    req.user = decoded;
     next();
   } catch (err) {
+    if (err.message === "JWT_SECRET is not configured") {
+      console.error("Authentication misconfiguration:", err.message);
+      return res.status(503).json({error: "Authentication is not configured."});
+    }
     if (err.name === "TokenExpiredError") {
       return res.status(401).json({error: "Token expired. Please log in again."});
     }

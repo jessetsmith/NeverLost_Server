@@ -11,8 +11,12 @@ const sketchfabRoutes = require("./routes/sketchfabRoutes");
 const userAssetRoutes = require("./routes/userAssetRoutes");
 const {UPLOADS_ROOT} = require("./controllers/assetController");
 
-// Load environment variables from .env file (project root, not cwd)
+// Load environment variables — secrets in .env.local only
+dotenv.config({path: path.join(__dirname, "../.env.local")});
 dotenv.config({path: path.join(__dirname, "../.env")});
+
+const {assertJwtSecretConfigured} = require("./utils/jwtSecret");
+const {applyExpressSecurity} = require("./middleware/applyExpressSecurity");
 
 // Validate required environment variables
 if (!process.env.SANITY_PROJECT_ID) {
@@ -25,19 +29,28 @@ if (!process.env.SANITY_DATASET) {
   process.exit(1);
 }
 
+try {
+  assertJwtSecretConfigured();
+  console.log("✅ JWT_SECRET loaded");
+} catch (err) {
+  console.error(`❌ Error: ${err.message} (set in .env.local for local dev)`);
+  process.exit(1);
+}
+
 // Initialize Express app
 const app = express();
 
 // Configure CORS
 app.use(
     cors({
-      origin: "http://localhost:5173", // Allow requests from this origin
+      origin: "http://localhost:5173",
       methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true,
     }),
 );
 
-app.use(express.json());
+applyExpressSecurity(app);
+app.use(express.json({limit: "256kb"}));
 
 // Initialize Sanity client
 const sanityClientConfig = {
@@ -66,60 +79,17 @@ if (process.env.SANITY_TOKEN && process.env.SANITY_TOKEN.trim() !== "") {
 
 const sanityClient = createClient(sanityClientConfig);
 
-// Verify token has write permissions on startup (only if token is provided)
+// Optional: verify Sanity token can read project data (no test user documents)
 if (process.env.SANITY_TOKEN && process.env.SANITY_TOKEN.trim() !== "") {
   (async () => {
     try {
-      // Try to create a test document to verify write permissions
-      const testDoc = {
-        _type: "user",
-        username: "__token_test__",
-        email: "__test@neverlost.io__",
-        password: "test",
-      };
-      const created = await sanityClient.create(testDoc);
-      // Clean up test document immediately
-      if (created && created._id) {
-        try {
-          await sanityClient.delete(created._id);
-        } catch (deleteErr) {
-          // Ignore delete errors, test doc will be cleaned up later
-        }
-      }
-      console.log("✅ Sanity token verified: Write permissions confirmed");
+      await sanityClient.fetch("*[_type == \"layout\"][0]._id");
+      console.log("✅ Sanity token verified: API access confirmed");
     } catch (err) {
-      if (err.statusCode === 403 ||
-          (err.details && err.details.type === "mutationError")) {
-        console.error("\n❌ ERROR: Sanity token is read-only!");
-        console.error("   Your token does not have write permissions.");
-        console.error(
-            "   Please create a new token with 'Editor' or 'Admin' role:",
-        );
-        console.error("   1. Go to https://sanity.io/manage");
-        const projectId = process.env.SANITY_PROJECT_ID;
-        console.error("   2. Select your project: " + projectId);
-        console.error("   3. Go to API → Tokens");
-        console.error("   4. Click 'Add API token'");
-        console.error("   5. Name it 'Server Token' or similar");
-        console.error("   6. Select 'Editor' or 'Admin' role (NOT 'Viewer')");
-        console.error(
-            "   7. Copy the token and update SANITY_TOKEN in your .env file",
-        );
-        console.error("   8. Restart the server");
-        console.error(
-            "   Registration and other write operations will fail",
-        );
-        console.error("   until this is fixed.\n");
+      if (err.statusCode === 403) {
+        console.error("\n❌ ERROR: Sanity token lacks required permissions.");
       } else {
-        // Other errors might be schema-related, don't block startup
-        console.warn(
-            "⚠️  Could not verify token permissions:",
-            err.message,
-        );
-        console.warn(
-            "   If registration fails, check your token has 'Editor'",
-        );
-        console.warn("   or 'Admin' role");
+        console.warn("⚠️  Could not verify Sanity token:", err.message);
       }
     }
   })();
@@ -176,6 +146,12 @@ app.listen(PORT, () => {
   const sketchfabOAuth = Boolean(
       process.env.SKETCHFAB_CLIENT_ID?.trim() && process.env.SKETCHFAB_CLIENT_SECRET?.trim(),
   );
-  console.log(`Sketchfab search: ${sketchfabSearch ? "configured" : "NOT configured (set SKETCHFAB_API_TOKEN)"}`);
-  console.log(`Sketchfab OAuth:  ${sketchfabOAuth ? "configured" : "NOT configured (set SKETCHFAB_CLIENT_ID/SECRET)"}`);
+  const searchStatus = sketchfabSearch ?
+    "configured" :
+    "NOT configured (set SKETCHFAB_API_TOKEN)";
+  const oauthStatus = sketchfabOAuth ?
+    "configured" :
+    "NOT configured (set SKETCHFAB_CLIENT_ID/SECRET)";
+  console.log(`Sketchfab search: ${searchStatus}`);
+  console.log(`Sketchfab OAuth:  ${oauthStatus}`);
 });

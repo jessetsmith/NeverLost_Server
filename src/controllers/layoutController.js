@@ -1,47 +1,13 @@
 const {v4: uuidv4} = require("uuid");
-const Joi = require("joi");
+const {createLayoutSchema, updateLayoutSchema} = require("../utils/layoutValidation");
 
-// Create Layout Controller
 const createLayout = async (req, res) => {
-  // Define validation schema using Joi
-  const schema = Joi.object({
-    name: Joi.string().required(),
-    description: Joi.string().required(),
-    objects: Joi.array()
-        .items(
-            Joi.object({
-              id: Joi.string().required(),
-              type: Joi.string().required(),
-              color: Joi.string().required(),
-              position: Joi.object({
-                x: Joi.number().required(),
-                y: Joi.number().required(),
-                z: Joi.number().required(),
-              }).required(),
-              rotation: Joi.object({
-                x: Joi.number().required(),
-                y: Joi.number().required(),
-                z: Joi.number().required(),
-              }).required(),
-              scale: Joi.object({
-                x: Joi.number().required(),
-                y: Joi.number().required(),
-                z: Joi.number().required(),
-              }).required(),
-            }),
-        )
-        .required(),
-  });
-
-  // Validate request body against schema
-  const {error} = schema.validate(req.body);
+  const {error} = createLayoutSchema.validate(req.body);
   if (error) {
     return res.status(400).json({error: error.details[0].message});
   }
 
   const {name, description, objects} = req.body;
-
-  // Get user ID from JWT token (set by authenticate middleware)
   const userId = req.user && req.user.id;
 
   if (!userId) {
@@ -51,7 +17,6 @@ const createLayout = async (req, res) => {
   try {
     const sanityClient = req.sanityClient;
 
-    // Create a new layout document
     const newLayout = {
       _id: uuidv4(),
       _type: "layout",
@@ -61,25 +26,21 @@ const createLayout = async (req, res) => {
       objects,
     };
 
-    // Save the new layout to Sanity
     const createdLayout = await sanityClient.create(newLayout);
 
-    // Respond with the new layout's ID
     res.status(201).json({layoutId: createdLayout._id || newLayout._id});
   } catch (err) {
     console.error("Create Layout Error:", err);
 
-    // Handle Sanity-specific permission errors
     if (err.statusCode === 403 || (err.details && err.details.type === "mutationError")) {
       return res.status(403).json({
-        error: "Insufficient permissions. The Sanity token needs write permissions.",
+        error: "Insufficient permissions to save layout.",
       });
     }
 
-    // Handle validation errors
     if (err.statusCode === 400) {
       return res.status(400).json({
-        error: err.message || "Invalid layout data.",
+        error: "Invalid layout data.",
       });
     }
 
@@ -113,8 +74,14 @@ const getLayoutById = async (req, res) => {
 
 const updateLayout = async (req, res) => {
   const {layoutId} = req.params;
-  const {objects, name, description} = req.body;
   const userId = req.user.id;
+
+  const {error} = updateLayoutSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({error: error.details[0].message});
+  }
+
+  const {objects, name, description} = req.body;
 
   try {
     const sanityClient = req.sanityClient;
@@ -126,9 +93,11 @@ const updateLayout = async (req, res) => {
           .json({error: "Layout not found or access denied."});
     }
 
-    const patch = {
-      objects: objects || existingLayout.objects,
-    };
+    const patch = {};
+
+    if (objects !== undefined) {
+      patch.objects = objects;
+    }
 
     if (typeof name === "string" && name.trim()) {
       patch.name = name.trim();
@@ -144,7 +113,7 @@ const updateLayout = async (req, res) => {
       layoutId: existingLayout._id,
       name: patch.name ?? existingLayout.name,
       description: patch.description ?? existingLayout.description,
-      objects: patch.objects,
+      objects: patch.objects ?? existingLayout.objects,
     });
   } catch (err) {
     console.error("Update Layout Error:", err);
@@ -153,16 +122,30 @@ const updateLayout = async (req, res) => {
 };
 
 const deleteLayout = async (req, res) => {
-  // Implementation here
-};
-
-const getAllLayouts = async (req, res) => {
-  const userId = req.user.id; // Assuming user ID is available in the request
+  const {layoutId} = req.params;
+  const userId = req.user.id;
 
   try {
     const sanityClient = req.sanityClient;
+    const existingLayout = await sanityClient.getDocument(layoutId);
 
-    // Fetch all layouts for the user
+    if (!existingLayout || existingLayout.userId !== userId) {
+      return res.status(404).json({error: "Layout not found or access denied."});
+    }
+
+    await sanityClient.delete(layoutId);
+    res.status(200).json({message: "Layout deleted.", layoutId});
+  } catch (err) {
+    console.error("Delete Layout Error:", err);
+    res.status(500).json({error: "Server error. Please try again later."});
+  }
+};
+
+const getAllLayouts = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const sanityClient = req.sanityClient;
     const query = `*[_type == "layout" && userId == $userId]`;
     const layouts = await sanityClient.fetch(query, {userId});
 
@@ -178,5 +161,5 @@ module.exports = {
   getLayoutById,
   updateLayout,
   deleteLayout,
-  getAllLayouts, // Add this export
+  getAllLayouts,
 };

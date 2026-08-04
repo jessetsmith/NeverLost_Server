@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const {v4: uuidv4} = require("uuid");
 const {createUserAsset} = require("../services/userAssetService");
+const {isAllowedRemoteUrl, fetchAllowedAsset} = require("../utils/assetUrlSecurity");
 
 const CONTENT_TYPES = {
   ".glb": "model/gltf-binary",
@@ -22,28 +23,6 @@ function normalizeAssetUrl(url) {
     return `https://drive.google.com/uc?export=download&id=${driveOpenMatch[1]}`;
   }
   return trimmed;
-}
-
-function isAllowedRemoteUrl(url) {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
-    const host = parsed.hostname.toLowerCase();
-    const pathLower = parsed.pathname.toLowerCase();
-    const full = url.toLowerCase();
-
-    if (host === "localhost" || host === "127.0.0.1") return true;
-    if (pathLower.includes(".glb") || pathLower.includes(".gltf")) return true;
-    if (full.includes(".glb") || full.includes(".gltf")) return true;
-    if (host.includes("drive.google.com")) return true;
-    if (host.includes("cdn.sanity.io")) return true;
-    if (host.includes("storage.googleapis.com")) return true;
-    if (host.includes("firebasestorage.googleapis.com")) return true;
-    if (host.endsWith(".amazonaws.com")) return true;
-    return false;
-  } catch {
-    return false;
-  }
 }
 
 function saveLocalAsset(userId, buffer, filename) {
@@ -102,7 +81,6 @@ const uploadAsset = async (req, res) => {
   const safeName = `${uuidv4()}${ext}`;
   const userId = req.user?.id || "anonymous";
 
-  // Try Sanity CDN first when configured
   if (req.sanityClient && process.env.SANITY_TOKEN) {
     try {
       const asset = await req.sanityClient.assets.upload("file", req.file.buffer, {
@@ -126,7 +104,6 @@ const uploadAsset = async (req, res) => {
     }
   }
 
-  // Local disk fallback — always available in dev
   try {
     saveLocalAsset(userId, req.file.buffer, safeName);
     const url = buildPublicUrl(req, userId, safeName);
@@ -154,30 +131,28 @@ const proxyAsset = async (req, res) => {
     return res.status(400).json({error: "URL query parameter is required."});
   }
 
-  const normalized = normalizeAssetUrl(rawUrl);
+  const normalized = normalizeAssetUrl(String(rawUrl));
   if (!isAllowedRemoteUrl(normalized)) {
     return res.status(400).json({
-      error: "URL not allowed. Use a direct .glb/.gltf link or Google Drive share link.",
+      error: "URL not allowed. Use HTTPS links from approved hosts or direct .glb/.gltf files.",
     });
   }
 
   try {
-    const response = await fetch(normalized, {redirect: "follow"});
-    if (!response.ok) {
-      return res.status(502).json({
-        error: `Could not fetch asset (HTTP ${response.status}). Use file upload for Google Drive files.`,
-      });
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const {response, buffer} = await fetchAllowedAsset(normalized);
     const contentType = response.headers.get("content-type") || "model/gltf-binary";
 
     res.set("Content-Type", contentType);
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Cache-Control", "public, max-age=3600");
+    res.set("Cache-Control", "private, max-age=3600");
     return res.send(buffer);
   } catch (err) {
-    console.error("Asset proxy error:", err);
+    console.error("Asset proxy error:", err.message);
+    if (err.message === "Asset too large") {
+      return res.status(413).json({error: "Asset file is too large."});
+    }
+    if (err.message === "URL not allowed") {
+      return res.status(400).json({error: "URL not allowed."});
+    }
     return res.status(502).json({
       error: "Failed to fetch asset URL. Try uploading the file directly instead.",
     });
@@ -190,4 +165,5 @@ module.exports = {
   normalizeAssetUrl,
   buildPublicUrl,
   UPLOADS_ROOT,
+  isAllowedRemoteUrl,
 };

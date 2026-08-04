@@ -11,6 +11,7 @@ const {defineString, defineSecret} = require("firebase-functions/params");
 // Express and middleware
 const express = require("express");
 const cors = require("cors");
+const {applyExpressSecurity} = require("./src/middleware/applyExpressSecurity");
 
 // Environment configuration
 const dotenv = require("dotenv");
@@ -96,6 +97,7 @@ const corsOptions = {
     const allowedOrigins = [
       "http://localhost:5173", // Local development
       "http://localhost:3000", // Alternative local port
+      "https://jessetsmith.github.io", // GitHub Pages
       /\.web\.app$/, // Firebase Hosting default domain
       /\.firebaseapp\.com$/, // Firebase Hosting default domain
     ];
@@ -122,7 +124,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+applyExpressSecurity(app);
+app.use(express.json({limit: "256kb"}));
 
 // Initialize Sanity client
 // Note: In Firebase Functions v2, when secrets are included in the
@@ -170,7 +173,6 @@ app.use((req, res, next) => {
 
 // Serve locally uploaded assets (fallback storage for dev / when Sanity upload fails)
 const {UPLOADS_ROOT} = require("./src/controllers/assetController");
-const path = require("path");
 app.use("/uploads/assets", express.static(UPLOADS_ROOT, {
   setHeaders(res) {
     res.set("Access-Control-Allow-Origin", "*");

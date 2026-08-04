@@ -2,7 +2,11 @@ uploads/
 *.local
 .env.local
 .env
+.env.bak
+.env.*
+!.env.example
 .firebase/
 *.log
 .DS_Store
 node_modules
+*.md
