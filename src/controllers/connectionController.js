@@ -13,6 +13,7 @@ const formatConnectionEntry = (entry, userMap) => ({
   userId: entry.connectedUserId,
   username: userMap[entry.connectedUserId]?.username || "Unknown",
   email: userMap[entry.connectedUserId]?.email || null,
+  profileImageUrl: userMap[entry.connectedUserId]?.profileImageUrl || null,
   status: entry.status || "accepted",
   createdAt: entry.createdAt,
 });
@@ -40,7 +41,7 @@ const listConnections = async (req, res) => {
     const connectedUserIds = connections.map((entry) => entry.connectedUserId);
     const users = connectedUserIds.length ?
       await sanityClient.fetch(
-          `*[_type == "user" && _id in $connectedUserIds]{ _id, username, email }`,
+          `*[_type == "user" && _id in $connectedUserIds]{ _id, username, email, profileImageUrl }`,
           {connectedUserIds},
       ) :
       [];

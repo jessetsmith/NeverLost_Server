@@ -1,5 +1,15 @@
 const rateLimit = require("express-rate-limit");
 
+function shouldSkipGlobalRateLimit(req) {
+  const path = req.path || "";
+  return (
+    path === "/api/users/login" ||
+    path === "/api/users/register" ||
+    path.endsWith("/users/login") ||
+    path.endsWith("/users/register")
+  );
+}
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
@@ -18,9 +28,10 @@ const uploadLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 600,
+  max: 1200,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: shouldSkipGlobalRateLimit,
   message: {error: "Too many requests. Please try again later."},
 });
 
@@ -40,4 +51,19 @@ const messageLimiter = rateLimit({
   message: {error: "Too many messages. Please try again later."},
 });
 
-module.exports = {authLimiter, uploadLimiter, apiLimiter, inviteLimiter, messageLimiter};
+const messagesReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {error: "Too many message requests. Please slow down."},
+});
+
+module.exports = {
+  authLimiter,
+  uploadLimiter,
+  apiLimiter,
+  inviteLimiter,
+  messageLimiter,
+  messagesReadLimiter,
+};

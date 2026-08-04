@@ -6,10 +6,10 @@ const {
   sendMessage,
 } = require("../controllers/messageController");
 const {authenticate} = require("../middleware/authenticate");
-const {messageLimiter} = require("../middleware/security");
+const {messageLimiter, messagesReadLimiter} = require("../middleware/security");
 
-router.get("/conversations", authenticate, getConversations);
-router.get("/with/:userId", authenticate, getMessagesWithUser);
+router.get("/conversations", authenticate, messagesReadLimiter, getConversations);
+router.get("/with/:userId", authenticate, messagesReadLimiter, getMessagesWithUser);
 router.post("/", authenticate, messageLimiter, sendMessage);
 
 module.exports = router;

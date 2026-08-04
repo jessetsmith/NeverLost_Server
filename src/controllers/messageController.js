@@ -93,6 +93,11 @@ const getMessagesWithUser = async (req, res) => {
     query += `] | order(createdAt asc)`;
 
     const messages = await sanityClient.fetch(query, params);
+    const otherUser = await getUserSummary(sanityClient, otherUserId);
+
+    if (!otherUser) {
+      return res.status(404).json({error: "User not found."});
+    }
 
     const unreadIds = messages
         .filter((message) => message.toUserId === userId && !message.readAt)
@@ -109,6 +114,10 @@ const getMessagesWithUser = async (req, res) => {
 
     res.status(200).json({
       messages: messages.map(formatMessage),
+      otherUser: {
+        userId: otherUser._id,
+        username: otherUser.username,
+      },
     });
   } catch (err) {
     console.error("Get Messages With User Error:", err);
