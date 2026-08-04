@@ -13,6 +13,7 @@ function isProductionRuntime() {
 const PRODUCTION_ALLOWED_HOSTS = new Set([
   "cdn.sanity.io",
   "drive.google.com",
+  "drive.usercontent.google.com",
   "storage.googleapis.com",
   "firebasestorage.googleapis.com",
 ]);
