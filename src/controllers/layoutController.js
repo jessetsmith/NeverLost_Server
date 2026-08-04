@@ -282,11 +282,16 @@ const exploreLayouts = async (req, res) => {
             {ownerUserId, currentUserId},
         );
       }
+      const ownerSummary = await getUserSummary(sanityClient, ownerUserId);
       owner = {
         userId: ownerUserId,
         username: ownerRecord.username,
+        profileImageUrl: ownerSummary?.profileImageUrl || "",
         publishedLayoutCount,
         pendingRequestId,
+        ...(connectionStatus === "connected" && ownerSummary?.email ?
+          {email: ownerSummary.email} :
+          {}),
       };
     }
 
