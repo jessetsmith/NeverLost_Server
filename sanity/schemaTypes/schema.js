@@ -248,6 +248,31 @@ export const schemaTypes = [
     ],
   },
   {
+    name: 'forumThread',
+    title: 'Forum Thread',
+    type: 'document',
+    fields: [
+      {name: 'authorUserId', title: 'Author User ID', type: 'string'},
+      {name: 'title', title: 'Title', type: 'string'},
+      {name: 'body', title: 'Body', type: 'text'},
+      {name: 'replyCount', title: 'Reply Count', type: 'number', initialValue: 0},
+      {name: 'createdAt', title: 'Created At', type: 'datetime'},
+      {name: 'lastActivityAt', title: 'Last Activity At', type: 'datetime'},
+    ],
+  },
+  {
+    name: 'forumPost',
+    title: 'Forum Post',
+    type: 'document',
+    fields: [
+      {name: 'threadId', title: 'Thread ID', type: 'string'},
+      {name: 'authorUserId', title: 'Author User ID', type: 'string'},
+      {name: 'body', title: 'Body', type: 'text'},
+      {name: 'createdAt', title: 'Created At', type: 'datetime'},
+      {name: 'editedAt', title: 'Edited At', type: 'datetime'},
+    ],
+  },
+  {
     name: 'user',
     title: 'User',
     type: 'document',

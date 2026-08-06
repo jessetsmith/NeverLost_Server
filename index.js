@@ -29,6 +29,8 @@ let userAssetRoutes;
 let notificationRoutes;
 let messageRoutes;
 let connectionRoutes;
+let feedRoutes;
+let forumRoutes;
 try {
   layoutRoutes = require("./src/routes/layoutRoutes");
   userRoutes = require("./src/routes/userRoutes");
@@ -38,6 +40,8 @@ try {
   notificationRoutes = require("./src/routes/notificationRoutes");
   messageRoutes = require("./src/routes/messageRoutes");
   connectionRoutes = require("./src/routes/connectionRoutes");
+  feedRoutes = require("./src/routes/feedRoutes");
+  forumRoutes = require("./src/routes/forumRoutes");
 } catch (error) {
   console.error("Error loading routes:", error);
   const expressRouter = require("express").Router;
@@ -49,6 +53,8 @@ try {
   notificationRoutes = expressRouter();
   messageRoutes = expressRouter();
   connectionRoutes = expressRouter();
+  feedRoutes = expressRouter();
+  forumRoutes = expressRouter();
 }
 
 // Load .env files for local development only (see scripts/loadEnv.js)
@@ -220,6 +226,8 @@ app.use("/api/user-assets", userAssetRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/connections", connectionRoutes);
+app.use("/api/feed", feedRoutes);
+app.use("/api/forum", forumRoutes);
 
 // Root Endpoint - Must be first for Cloud Run health checks
 // Cloud Run checks the root path to verify container is ready

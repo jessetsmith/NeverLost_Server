@@ -1,7 +1,9 @@
 const {v4: uuidv4} = require("uuid");
 const {createLayoutSchema, updateLayoutSchema} = require("../utils/layoutValidation");
 const {findUserByEmailOrUsername, getUserSummary} = require("../services/userLookup");
-const {getConnectionStatus, getPublishedLayoutCount} = require("../services/connectionService");
+const {createNotification} = require("../services/notificationService");
+const {getUserSummary} = require("../services/userLookup");
+const {getConnectionStatus, getPublishedLayoutCount, getConnectedUserIds} = require("../services/connectionService");
 const {
   canReadLayout,
   canEditLayout,
@@ -345,6 +347,19 @@ const publishLayout = async (req, res) => {
       visibility: "published",
       publishedAt,
     }).commit();
+
+    const publisher = await getUserSummary(sanityClient, userId);
+    const connectionIds = await getConnectedUserIds(sanityClient, userId);
+
+    await Promise.all(connectionIds.map((recipientUserId) =>
+      createNotification(sanityClient, {
+        recipientUserId,
+        type: "layout_published",
+        title: "New published layout",
+        body: `${publisher?.username || "A connection"} published "${layout.name || "a layout"}"`,
+        payload: {layoutId, fromUserId: userId},
+      }),
+    ));
 
     res.status(200).json({
       layoutId,

@@ -11,6 +11,8 @@ const userAssetRoutes = require("./routes/userAssetRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const connectionRoutes = require("./routes/connectionRoutes");
+const feedRoutes = require("./routes/feedRoutes");
+const forumRoutes = require("./routes/forumRoutes");
 const {UPLOADS_ROOT} = require("./controllers/assetController");
 const {PROFILES_ROOT} = require("./services/profileImageService");
 
@@ -127,6 +129,8 @@ app.use("/api/user-assets", userAssetRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/connections", connectionRoutes);
+app.use("/api/feed", feedRoutes);
+app.use("/api/forum", forumRoutes);
 
 // Root Endpoint
 app.get("/", (req, res) => {

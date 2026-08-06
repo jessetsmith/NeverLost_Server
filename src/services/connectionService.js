@@ -65,6 +65,15 @@ async function getPublishedLayoutCount(sanityClient, ownerUserId) {
   return sanityClient.fetch(query, {ownerUserId});
 }
 
+async function getConnectedUserIds(sanityClient, userId) {
+  const query = [
+    `*[_type == "connection" && userId == $userId && ${ACCEPTED_STATUS_FILTER}]`,
+    "{ connectedUserId }",
+  ].join(" ");
+  const connections = await sanityClient.fetch(query, {userId});
+  return connections.map((entry) => entry.connectedUserId);
+}
+
 module.exports = {
   ACCEPTED_STATUS_FILTER,
   PENDING_STATUS_FILTER,
@@ -72,4 +81,5 @@ module.exports = {
   getConnectionStatus,
   findConnectionBetween,
   getPublishedLayoutCount,
+  getConnectedUserIds,
 };
