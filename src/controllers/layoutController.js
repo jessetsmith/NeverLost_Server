@@ -2,8 +2,11 @@ const {v4: uuidv4} = require("uuid");
 const {createLayoutSchema, updateLayoutSchema} = require("../utils/layoutValidation");
 const {findUserByEmailOrUsername, getUserSummary} = require("../services/userLookup");
 const {createNotification} = require("../services/notificationService");
-const {getUserSummary} = require("../services/userLookup");
-const {getConnectionStatus, getPublishedLayoutCount, getConnectedUserIds} = require("../services/connectionService");
+const {
+  getConnectionStatus,
+  getPublishedLayoutCount,
+  getConnectedUserIds,
+} = require("../services/connectionService");
 const {
   canReadLayout,
   canEditLayout,
