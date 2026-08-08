@@ -2,7 +2,7 @@ const {v4: uuidv4} = require("uuid");
 const Joi = require("joi");
 const {createNotification} = require("../services/notificationService");
 const {getUserSummary} = require("../services/userLookup");
-const {getConnectedUserIds, isConnected} = require("../services/connectionService");
+const {getConnectedUserIds, isConnected, getConnectionStatusesForUsers} = require("../services/connectionService");
 
 const createThreadSchema = Joi.object({
   title: Joi.string().trim().min(3).max(120).required(),
@@ -13,8 +13,9 @@ const createPostSchema = Joi.object({
   body: Joi.string().trim().min(1).max(5000).required(),
 });
 
-function formatThreadSummary(thread, userMap) {
+function formatThreadSummary(thread, userMap, connectionMap = {}) {
   const author = userMap[thread.authorUserId];
+  const connection = connectionMap[thread.authorUserId] || {};
   return {
     id: thread._id,
     title: thread.title,
@@ -22,14 +23,17 @@ function formatThreadSummary(thread, userMap) {
     authorUserId: thread.authorUserId,
     authorUsername: author?.username || "Unknown",
     authorProfileImageUrl: author?.profileImageUrl || "",
+    connectionStatus: connection.connectionStatus || "none",
+    pendingRequestId: connection.pendingRequestId || null,
     replyCount: thread.replyCount || 0,
     createdAt: thread.createdAt,
     lastActivityAt: thread.lastActivityAt || thread.createdAt,
   };
 }
 
-function formatPost(post, userMap) {
+function formatPost(post, userMap, connectionMap = {}) {
   const author = userMap[post.authorUserId];
+  const connection = connectionMap[post.authorUserId] || {};
   return {
     id: post._id,
     threadId: post.threadId,
@@ -37,6 +41,8 @@ function formatPost(post, userMap) {
     authorUserId: post.authorUserId,
     authorUsername: author?.username || "Unknown",
     authorProfileImageUrl: author?.profileImageUrl || "",
+    connectionStatus: connection.connectionStatus || "none",
+    pendingRequestId: connection.pendingRequestId || null,
     createdAt: post.createdAt,
     editedAt: post.editedAt || null,
   };
@@ -70,9 +76,14 @@ const listThreads = async (req, res) => {
       ) :
       [];
     const userMap = Object.fromEntries(users.map((user) => [user._id, user]));
+    const connectionMap = await getConnectionStatusesForUsers(
+        sanityClient,
+        req.user.id,
+        authorIds,
+    );
 
     res.status(200).json({
-      threads: threads.map((thread) => formatThreadSummary(thread, userMap)),
+      threads: threads.map((thread) => formatThreadSummary(thread, userMap, connectionMap)),
       page,
       limit,
       total,
@@ -111,10 +122,15 @@ const getThread = async (req, res) => {
       ) :
       [];
     const userMap = Object.fromEntries(users.map((user) => [user._id, user]));
+    const connectionMap = await getConnectionStatusesForUsers(
+        sanityClient,
+        req.user.id,
+        [...authorIds],
+    );
 
     res.status(200).json({
-      thread: formatThreadSummary(thread, userMap),
-      posts: posts.map((post) => formatPost(post, userMap)),
+      thread: formatThreadSummary(thread, userMap, connectionMap),
+      posts: posts.map((post) => formatPost(post, userMap, connectionMap)),
     });
   } catch (err) {
     console.error("Get Forum Thread Error:", err);

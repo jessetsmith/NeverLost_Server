@@ -74,11 +74,76 @@ async function getConnectedUserIds(sanityClient, userId) {
   return connections.map((entry) => entry.connectedUserId);
 }
 
+async function getConnectionStatusesForUsers(sanityClient, viewerId, otherUserIds) {
+  const uniqueIds = [...new Set((otherUserIds || []).filter((id) => id && id !== viewerId))];
+  const statusMap = Object.fromEntries(uniqueIds.map((id) => [id, {
+    connectionStatus: "none",
+    pendingRequestId: null,
+  }]));
+
+  if (!viewerId || uniqueIds.length === 0) {
+    return statusMap;
+  }
+
+  const [accepted, outgoing, incoming] = await Promise.all([
+    sanityClient.fetch(
+        [
+          "*[_type == \"connection\"",
+          `&& userId == $viewerId && connectedUserId in $ids && ${ACCEPTED_STATUS_FILTER}]`,
+          "{ connectedUserId }",
+        ].join(" "),
+        {viewerId, ids: uniqueIds},
+    ),
+    sanityClient.fetch(
+        [
+          "*[_type == \"connection\"",
+          `&& userId == $viewerId && connectedUserId in $ids && ${PENDING_STATUS_FILTER}]`,
+          "{ connectedUserId }",
+        ].join(" "),
+        {viewerId, ids: uniqueIds},
+    ),
+    sanityClient.fetch(
+        [
+          "*[_type == \"connection\"",
+          `&& userId in $ids && connectedUserId == $viewerId && ${PENDING_STATUS_FILTER}]`,
+          "{ _id, userId }",
+        ].join(" "),
+        {viewerId, ids: uniqueIds},
+    ),
+  ]);
+
+  accepted.forEach((entry) => {
+    statusMap[entry.connectedUserId] = {
+      connectionStatus: "connected",
+      pendingRequestId: null,
+    };
+  });
+
+  outgoing.forEach((entry) => {
+    if (statusMap[entry.connectedUserId]?.connectionStatus === "none") {
+      statusMap[entry.connectedUserId] = {
+        connectionStatus: "pending_outgoing",
+        pendingRequestId: null,
+      };
+    }
+  });
+
+  incoming.forEach((entry) => {
+    statusMap[entry.userId] = {
+      connectionStatus: "pending_incoming",
+      pendingRequestId: entry._id,
+    };
+  });
+
+  return statusMap;
+}
+
 module.exports = {
   ACCEPTED_STATUS_FILTER,
   PENDING_STATUS_FILTER,
   isConnected,
   getConnectionStatus,
+  getConnectionStatusesForUsers,
   findConnectionBetween,
   getPublishedLayoutCount,
   getConnectedUserIds,
