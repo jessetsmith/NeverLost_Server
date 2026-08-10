@@ -64,6 +64,7 @@ function formatLayoutSummary(layout, role, extra = {}) {
     name: layout.name,
     description: layout.description,
     objects: layout.objects || [],
+    sceneSettings: layout.sceneSettings || null,
     userId: layout.userId,
     visibility: layout.visibility || "private",
     publishedAt: layout.publishedAt || null,

@@ -107,7 +107,7 @@ const updateLayout = async (req, res) => {
     return res.status(400).json({error: error.details[0].message});
   }
 
-  const {objects, name, description} = req.body;
+  const {objects, name, description, sceneSettings} = req.body;
 
   try {
     const sanityClient = req.sanityClient;
@@ -133,6 +133,10 @@ const updateLayout = async (req, res) => {
 
     if (typeof description === "string") {
       patch.description = description.trim();
+    }
+
+    if (sceneSettings !== undefined) {
+      patch.sceneSettings = sceneSettings;
     }
 
     await sanityClient.patch(layoutId).set(patch).commit();

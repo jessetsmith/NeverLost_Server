@@ -4,6 +4,7 @@ const {
   search,
   oauthUrl,
   oauthExchange,
+  oauthRefresh,
   oauthStatus,
   saveModel,
   importModel,
@@ -14,6 +15,7 @@ router.get("/status", authenticate, oauthStatus);
 router.get("/search", authenticate, search);
 router.get("/oauth/url", authenticate, oauthUrl);
 router.post("/oauth/exchange", authenticate, oauthExchange);
+router.post("/oauth/refresh", authenticate, oauthRefresh);
 router.post("/save", authenticate, saveModel);
 router.post("/import/:layoutId", authenticate, importModel);
 

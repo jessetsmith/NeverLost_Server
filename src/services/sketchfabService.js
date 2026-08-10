@@ -213,6 +213,35 @@ async function exchangeOAuthCode(code, redirectUri) {
   return response.json();
 }
 
+async function refreshOAuthToken(refreshToken) {
+  const {clientId, clientSecret} = getOAuthConfig();
+  if (!clientId || !clientSecret) {
+    throw new Error("Sketchfab OAuth is not configured on the server.");
+  }
+
+  if (!refreshToken) {
+    throw new Error("Refresh token is required.");
+  }
+
+  const response = await fetch("https://sketchfab.com/oauth2/token/", {
+    method: "POST",
+    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Sketchfab OAuth refresh failed (${response.status}): ${body}`);
+  }
+
+  return response.json();
+}
+
 async function getDownloadLinks(modelUid, accessToken) {
   const response = await fetch(`${SKETCHFAB_API}/models/${modelUid}/download`, {
     headers: sketchfabHeaders(accessToken, "oauth"),
@@ -332,6 +361,7 @@ module.exports = {
   searchModels,
   buildOAuthUrl,
   exchangeOAuthCode,
+  refreshOAuthToken,
   importModelToStorage,
   fetchModelMetadata,
   buildSketchfabCredit,

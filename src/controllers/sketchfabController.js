@@ -2,6 +2,7 @@ const {
   searchModels,
   buildOAuthUrl,
   exchangeOAuthCode,
+  refreshOAuthToken,
   importModelToStorage,
   fetchModelMetadata,
   getApiToken,
@@ -67,6 +68,25 @@ const oauthExchange = async (req, res) => {
   } catch (err) {
     console.error("Sketchfab OAuth error:", err);
     res.status(502).json({error: err.message || "Failed to connect Sketchfab account."});
+  }
+};
+
+const oauthRefresh = async (req, res) => {
+  try {
+    const {refreshToken} = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({error: "refreshToken is required."});
+    }
+
+    const tokens = await refreshOAuthToken(refreshToken);
+    res.status(200).json({
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresIn: tokens.expires_in,
+    });
+  } catch (err) {
+    console.error("Sketchfab OAuth refresh error:", err);
+    res.status(401).json({error: err.message || "Failed to refresh Sketchfab session."});
   }
 };
 
@@ -224,6 +244,7 @@ module.exports = {
   search,
   oauthUrl,
   oauthExchange,
+  oauthRefresh,
   oauthStatus,
   saveModel,
   importModel,

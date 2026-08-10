@@ -37,6 +37,20 @@ const layoutObjectSchema = Joi.object({
   }).required(),
 });
 
+const hexColorSchema = Joi.string().pattern(/^#[0-9A-Fa-f]{6}$/);
+
+const sceneSettingsSchema = Joi.object({
+  backgroundColor: hexColorSchema.optional(),
+  groundColor: hexColorSchema.optional(),
+  skyColor: hexColorSchema.optional(),
+  lightColor: hexColorSchema.optional(),
+  lightIntensity: Joi.number().min(0.2).max(3).optional(),
+  ambientIntensity: Joi.number().min(0).max(1.5).optional(),
+  accentColor: hexColorSchema.optional(),
+  fillLightColor: hexColorSchema.optional(),
+  fogEnabled: Joi.boolean().optional(),
+});
+
 const createLayoutSchema = Joi.object({
   name: Joi.string().max(200).required(),
   description: Joi.string().max(2000).required(),
@@ -47,6 +61,12 @@ const updateLayoutSchema = Joi.object({
   name: Joi.string().max(200).trim().optional(),
   description: Joi.string().max(2000).allow("").optional(),
   objects: Joi.array().items(layoutObjectSchema).max(500).optional(),
+  sceneSettings: sceneSettingsSchema.optional(),
 }).min(1);
 
-module.exports = {layoutObjectSchema, createLayoutSchema, updateLayoutSchema};
+module.exports = {
+  layoutObjectSchema,
+  createLayoutSchema,
+  updateLayoutSchema,
+  sceneSettingsSchema,
+};

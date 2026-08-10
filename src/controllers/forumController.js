@@ -2,7 +2,11 @@ const {v4: uuidv4} = require("uuid");
 const Joi = require("joi");
 const {createNotification} = require("../services/notificationService");
 const {getUserSummary} = require("../services/userLookup");
-const {getConnectedUserIds, isConnected, getConnectionStatusesForUsers} = require("../services/connectionService");
+const {
+  getConnectedUserIds,
+  isConnected,
+  getConnectionStatusesForUsers,
+} = require("../services/connectionService");
 
 const createThreadSchema = Joi.object({
   title: Joi.string().trim().min(3).max(120).required(),

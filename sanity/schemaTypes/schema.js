@@ -61,6 +61,22 @@ export const schemaTypes = [
         ],
       },
       {
+        name: 'sceneSettings',
+        title: 'Scene Settings',
+        type: 'object',
+        fields: [
+          {name: 'backgroundColor', title: 'Background Color', type: 'string'},
+          {name: 'groundColor', title: 'Ground Color', type: 'string'},
+          {name: 'skyColor', title: 'Sky Color', type: 'string'},
+          {name: 'lightColor', title: 'Light Color', type: 'string'},
+          {name: 'lightIntensity', title: 'Light Intensity', type: 'number'},
+          {name: 'ambientIntensity', title: 'Ambient Intensity', type: 'number'},
+          {name: 'accentColor', title: 'Accent Color', type: 'string'},
+          {name: 'fillLightColor', title: 'Fill Light Color', type: 'string'},
+          {name: 'fogEnabled', title: 'Fog Enabled', type: 'boolean'},
+        ],
+      },
+      {
         name: 'objects',
         title: 'Objects',
         type: 'array',
