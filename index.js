@@ -203,6 +203,7 @@ app.use((req, res, next) => {
 // Serve locally uploaded assets (fallback storage for dev / when Sanity upload fails)
 const {UPLOADS_ROOT, FLOORPLANS_ROOT} = require("./src/controllers/assetController");
 const {PROFILES_ROOT} = require("./src/services/profileImageService");
+const {THUMBNAILS_ROOT} = require("./src/services/layoutThumbnailService");
 app.use("/uploads/assets", express.static(UPLOADS_ROOT, {
   setHeaders(res) {
     res.set("Access-Control-Allow-Origin", "*");
@@ -221,6 +222,14 @@ app.use("/uploads/profiles", express.static(PROFILES_ROOT, {
   setHeaders(res) {
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Cross-Origin-Resource-Policy", "cross-origin");
+  },
+}));
+
+app.use("/uploads/thumbnails", express.static(THUMBNAILS_ROOT, {
+  setHeaders(res) {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Cross-Origin-Resource-Policy", "cross-origin");
+    res.set("Cache-Control", "public, max-age=86400");
   },
 }));
 

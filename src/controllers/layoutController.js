@@ -14,7 +14,9 @@ const {
   getLayoutRole,
   formatLayoutResponse,
   formatLayoutSummary,
+  formatLayoutGalleryCard,
 } = require("../utils/layoutAccess");
+const {saveLayoutThumbnail} = require("../services/layoutThumbnailService");
 
 const createLayout = async (req, res) => {
   const {error} = createLayoutSchema.validate(req.body);
@@ -273,9 +275,14 @@ const exploreLayouts = async (req, res) => {
       name,
       description,
       objects,
+      sceneSettings,
+      layoutDimensions,
       userId,
       visibility,
       publishedAt,
+      thumbnailUrl,
+      thumbnailUpdatedAt,
+      _updatedAt,
       "ownerUsername": *[_type == "user" && _id == ^.userId][0].username
     }`;
 
@@ -317,16 +324,8 @@ const exploreLayouts = async (req, res) => {
     }
 
     res.status(200).json({
-      layouts: layouts.map((layout) => ({
-        _id: layout._id,
-        layoutId: layout._id,
-        name: layout.name,
-        description: layout.description,
-        objects: layout.objects || [],
-        userId: layout.userId,
+      layouts: layouts.map((layout) => formatLayoutGalleryCard(layout, {
         ownerUsername: layout.ownerUsername || "Unknown",
-        visibility: layout.visibility,
-        publishedAt: layout.publishedAt,
       })),
       page,
       limit,
@@ -421,6 +420,37 @@ const unpublishLayout = async (req, res) => {
   }
 };
 
+const uploadLayoutThumbnail = async (req, res) => {
+  const {layoutId} = req.params;
+  const userId = req.user.id;
+  const {imageData} = req.body;
+
+  try {
+    const sanityClient = req.sanityClient;
+    const layout = await sanityClient.getDocument(layoutId);
+
+    if (!layout || layout._type !== "layout") {
+      return res.status(404).json({error: "Layout not found."});
+    }
+
+    if (!canEditLayout(layout, userId)) {
+      return res.status(403).json({error: "You do not have permission to edit this layout."});
+    }
+
+    const result = await saveLayoutThumbnail(req, layout, imageData);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("Upload Layout Thumbnail Error:", err);
+    if (err.message && (
+      err.message.includes("Thumbnail") ||
+      err.message.includes("too large")
+    )) {
+      return res.status(400).json({error: err.message});
+    }
+    return res.status(500).json({error: "Server error. Please try again later."});
+  }
+};
+
 module.exports = {
   createLayout,
   getLayoutById,
@@ -430,4 +460,5 @@ module.exports = {
   exploreLayouts,
   publishLayout,
   unpublishLayout,
+  uploadLayoutThumbnail,
 };

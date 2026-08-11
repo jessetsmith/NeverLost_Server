@@ -15,6 +15,8 @@ const feedRoutes = require("./routes/feedRoutes");
 const forumRoutes = require("./routes/forumRoutes");
 const {UPLOADS_ROOT, FLOORPLANS_ROOT} = require("./controllers/assetController");
 const {PROFILES_ROOT} = require("./services/profileImageService");
+const {THUMBNAILS_ROOT} = require("./services/layoutThumbnailService");
+const {startLayoutThumbnailRefreshJob} = require("./jobs/layoutThumbnailJob");
 
 // Load env profile (local vs production) + secrets from .env.local
 const runtimeEnv = loadLocalEnv();
@@ -127,6 +129,14 @@ app.use("/uploads/profiles", express.static(PROFILES_ROOT, {
   },
 }));
 
+app.use("/uploads/thumbnails", express.static(THUMBNAILS_ROOT, {
+  setHeaders(res) {
+    res.set("Access-Control-Allow-Origin", "http://localhost:5173");
+    res.set("Cross-Origin-Resource-Policy", "cross-origin");
+    res.set("Cache-Control", "public, max-age=86400");
+  },
+}));
+
 // Routes
 app.use("/api/layouts", layoutRoutes);
 app.use("/api/users", userRoutes);
@@ -190,4 +200,5 @@ app.listen(PORT, () => {
     "NOT configured (set SKETCHFAB_CLIENT_ID/SECRET)";
   console.log(`Sketchfab search: ${searchStatus}`);
   console.log(`Sketchfab OAuth:  ${oauthStatus}`);
+  startLayoutThumbnailRefreshJob(sanityClient);
 });

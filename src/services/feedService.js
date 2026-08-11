@@ -23,7 +23,8 @@ async function fetchConnectionFeedItems(sanityClient, userId, {limit = 40} = {})
   const publishedQuery = [
     "*[_type == \"layout\" && visibility == \"published\" && userId in $connectionIds]",
     "| order(publishedAt desc) [0...$limit] {",
-    "_id, name, description, objects, userId, publishedAt",
+    "_id, name, description, objects, sceneSettings, layoutDimensions, userId, publishedAt,",
+    "thumbnailUrl, thumbnailUpdatedAt, _updatedAt",
     "}",
   ].join(" ");
 
@@ -76,6 +77,11 @@ async function fetchConnectionFeedItems(sanityClient, userId, {limit = 40} = {})
         name: layout.name,
         description: layout.description || "",
         objects: layout.objects || [],
+        sceneSettings: layout.sceneSettings || null,
+        layoutDimensions: layout.layoutDimensions || null,
+        thumbnailUrl: layout.thumbnailUrl || null,
+        thumbnailUpdatedAt: layout.thumbnailUpdatedAt || null,
+        layoutUpdatedAt: layout._updatedAt || null,
       },
     });
   });

@@ -38,6 +38,16 @@ export const schemaTypes = [
         type: 'datetime',
       },
       {
+        name: 'thumbnailUrl',
+        title: 'Thumbnail URL',
+        type: 'url',
+      },
+      {
+        name: 'thumbnailUpdatedAt',
+        title: 'Thumbnail Updated At',
+        type: 'datetime',
+      },
+      {
         name: 'collaborators',
         title: 'Collaborators',
         type: 'array',

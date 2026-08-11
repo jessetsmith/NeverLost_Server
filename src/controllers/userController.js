@@ -315,7 +315,12 @@ const getPublicProfile = async (req, res) => {
         name,
         description,
         objects,
-        publishedAt
+        sceneSettings,
+        layoutDimensions,
+        publishedAt,
+        thumbnailUrl,
+        thumbnailUpdatedAt,
+        _updatedAt
       }`;
     const publishedLayouts = await sanityClient.fetch(layoutsQuery, {userId});
 
@@ -343,7 +348,12 @@ const getPublicProfile = async (req, res) => {
         name: layout.name,
         description: layout.description,
         objects: layout.objects || [],
+        sceneSettings: layout.sceneSettings || null,
+        layoutDimensions: layout.layoutDimensions || null,
         publishedAt: layout.publishedAt,
+        thumbnailUrl: layout.thumbnailUrl || null,
+        thumbnailUpdatedAt: layout.thumbnailUpdatedAt || null,
+        layoutUpdatedAt: layout._updatedAt || null,
       })),
       isOwnProfile: viewerId === userId,
       isConnected: connectionStatus === "connected",

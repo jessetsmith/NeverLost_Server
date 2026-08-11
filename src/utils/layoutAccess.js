@@ -69,8 +69,30 @@ function formatLayoutSummary(layout, role, extra = {}) {
     userId: layout.userId,
     visibility: layout.visibility || "private",
     publishedAt: layout.publishedAt || null,
+    thumbnailUrl: layout.thumbnailUrl || null,
+    thumbnailUpdatedAt: layout.thumbnailUpdatedAt || null,
+    layoutUpdatedAt: layout._updatedAt || null,
     collaborators: layout.collaborators || [],
     role,
+    ...extra,
+  };
+}
+
+function formatLayoutGalleryCard(layout, extra = {}) {
+  return {
+    _id: layout._id,
+    layoutId: layout._id,
+    name: layout.name,
+    description: layout.description,
+    objects: layout.objects || [],
+    sceneSettings: layout.sceneSettings || null,
+    layoutDimensions: layout.layoutDimensions || null,
+    userId: layout.userId,
+    visibility: layout.visibility,
+    publishedAt: layout.publishedAt || null,
+    thumbnailUrl: layout.thumbnailUrl || null,
+    thumbnailUpdatedAt: layout.thumbnailUpdatedAt || null,
+    layoutUpdatedAt: layout._updatedAt || null,
     ...extra,
   };
 }
@@ -88,4 +110,5 @@ module.exports = {
   canPublish,
   formatLayoutSummary,
   formatLayoutResponse,
+  formatLayoutGalleryCard,
 };
