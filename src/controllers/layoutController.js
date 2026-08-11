@@ -22,7 +22,7 @@ const createLayout = async (req, res) => {
     return res.status(400).json({error: error.details[0].message});
   }
 
-  const {name, description, objects} = req.body;
+  const {name, description, objects, layoutDimensions, sceneSettings} = req.body;
   const userId = req.user && req.user.id;
 
   if (!userId) {
@@ -42,6 +42,14 @@ const createLayout = async (req, res) => {
       visibility: "private",
       collaborators: [],
     };
+
+    if (layoutDimensions !== undefined) {
+      newLayout.layoutDimensions = layoutDimensions;
+    }
+
+    if (sceneSettings !== undefined) {
+      newLayout.sceneSettings = sceneSettings;
+    }
 
     const createdLayout = await sanityClient.create(newLayout);
 
@@ -107,7 +115,7 @@ const updateLayout = async (req, res) => {
     return res.status(400).json({error: error.details[0].message});
   }
 
-  const {objects, name, description, sceneSettings} = req.body;
+  const {objects, name, description, sceneSettings, layoutDimensions} = req.body;
 
   try {
     const sanityClient = req.sanityClient;
@@ -137,6 +145,10 @@ const updateLayout = async (req, res) => {
 
     if (sceneSettings !== undefined) {
       patch.sceneSettings = sceneSettings;
+    }
+
+    if (layoutDimensions !== undefined) {
+      patch.layoutDimensions = layoutDimensions;
     }
 
     await sanityClient.patch(layoutId).set(patch).commit();

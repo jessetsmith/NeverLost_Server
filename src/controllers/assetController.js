@@ -10,6 +10,14 @@ const CONTENT_TYPES = {
 };
 
 const UPLOADS_ROOT = path.join(__dirname, "../../uploads/assets");
+const FLOORPLANS_ROOT = path.join(__dirname, "../../uploads/floorplans");
+
+const FLOORPLAN_CONTENT_TYPES = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+};
 
 /** Convert share links (e.g. Google Drive) to a fetchable download URL. */
 function normalizeAssetUrl(url) {
@@ -38,6 +46,21 @@ function buildPublicUrl(req, userId, filename) {
     return `${process.env.ASSET_BASE_URL.replace(/\/$/, "")}/uploads/assets/${userId}/${filename}`;
   }
   return `${req.protocol}://${req.get("host")}/uploads/assets/${userId}/${filename}`;
+}
+
+function saveLocalFloorplan(userId, buffer, filename) {
+  const userDir = path.join(FLOORPLANS_ROOT, String(userId));
+  fs.mkdirSync(userDir, {recursive: true});
+  const filePath = path.join(userDir, filename);
+  fs.writeFileSync(filePath, buffer);
+  return filePath;
+}
+
+function buildFloorplanPublicUrl(req, userId, filename) {
+  if (process.env.ASSET_BASE_URL) {
+    return `${process.env.ASSET_BASE_URL.replace(/\/$/, "")}/uploads/floorplans/${userId}/${filename}`;
+  }
+  return `/uploads/floorplans/${userId}/${filename}`;
 }
 
 function buildUploadResponse({url, storage, originalName, assetId, userAsset}) {
@@ -124,6 +147,33 @@ const uploadAsset = async (req, res) => {
   }
 };
 
+const uploadFloorplan = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({error: "No file uploaded."});
+  }
+
+  const ext = req.file.originalname.toLowerCase().slice(req.file.originalname.lastIndexOf("."));
+  if (!FLOORPLAN_CONTENT_TYPES[ext]) {
+    return res.status(400).json({error: "Only PNG, JPG, and WebP floorplan images are allowed."});
+  }
+
+  const safeName = `${uuidv4()}${ext}`;
+  const userId = req.user?.id || "anonymous";
+
+  try {
+    saveLocalFloorplan(userId, req.file.buffer, safeName);
+    const url = buildFloorplanPublicUrl(req, userId, safeName);
+    return res.status(201).json({
+      url,
+      originalName: req.file.originalname,
+      storage: "local",
+    });
+  } catch (err) {
+    console.error("Floorplan upload error:", err);
+    return res.status(500).json({error: "Failed to save floorplan. Please try again."});
+  }
+};
+
 /** Proxy remote GLB/GLTF URLs so Three.js can load them (CORS / Google Drive). */
 const proxyAsset = async (req, res) => {
   const rawUrl = req.query.url;
@@ -161,9 +211,12 @@ const proxyAsset = async (req, res) => {
 
 module.exports = {
   uploadAsset,
+  uploadFloorplan,
   proxyAsset,
   normalizeAssetUrl,
   buildPublicUrl,
+  buildFloorplanPublicUrl,
   UPLOADS_ROOT,
+  FLOORPLANS_ROOT,
   isAllowedRemoteUrl,
 };

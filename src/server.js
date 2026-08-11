@@ -13,7 +13,7 @@ const messageRoutes = require("./routes/messageRoutes");
 const connectionRoutes = require("./routes/connectionRoutes");
 const feedRoutes = require("./routes/feedRoutes");
 const forumRoutes = require("./routes/forumRoutes");
-const {UPLOADS_ROOT} = require("./controllers/assetController");
+const {UPLOADS_ROOT, FLOORPLANS_ROOT} = require("./controllers/assetController");
 const {PROFILES_ROOT} = require("./services/profileImageService");
 
 // Load env profile (local vs production) + secrets from .env.local
@@ -113,6 +113,13 @@ app.use("/uploads/assets", express.static(UPLOADS_ROOT, {
   },
 }));
 
+app.use("/uploads/floorplans", express.static(FLOORPLANS_ROOT, {
+  setHeaders(res) {
+    res.set("Access-Control-Allow-Origin", "http://localhost:5173");
+    res.set("Cross-Origin-Resource-Policy", "cross-origin");
+  },
+}));
+
 app.use("/uploads/profiles", express.static(PROFILES_ROOT, {
   setHeaders(res) {
     res.set("Access-Control-Allow-Origin", "http://localhost:5173");
@@ -148,6 +155,9 @@ app.use((err, req, res, next) => {
   if (err.message === "Only .glb and .gltf files are allowed.") {
     return res.status(400).json({error: err.message});
   }
+  if (err.message === "Only PNG, JPG, and WebP floorplan images are allowed.") {
+    return res.status(400).json({error: err.message});
+  }
   if (err.message === "Only JPEG, PNG, GIF, and WebP images are allowed.") {
     return res.status(400).json({error: err.message});
   }
@@ -166,6 +176,7 @@ app.listen(PORT, () => {
   console.log(`User profile:  GET  /api/users/profile`);
   console.log(`Session refresh: POST /api/users/session/refresh`);
   console.log(`Asset uploads: POST /api/assets/upload`);
+  console.log(`Floorplan uploads: POST /api/assets/upload-floorplan`);
   console.log(`Asset proxy:   GET  /api/assets/proxy?url=...`);
   const sketchfabSearch = Boolean(process.env.SKETCHFAB_API_TOKEN?.trim());
   const sketchfabOAuth = Boolean(

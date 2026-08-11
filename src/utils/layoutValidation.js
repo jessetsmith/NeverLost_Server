@@ -51,10 +51,39 @@ const sceneSettingsSchema = Joi.object({
   fogEnabled: Joi.boolean().optional(),
 });
 
+const layoutDimensionsSchema = Joi.object({
+  width: Joi.number().min(4).max(200).optional(),
+  depth: Joi.number().min(4).max(200).optional(),
+  height: Joi.number().min(4).max(100).optional(),
+  unit: Joi.string().valid("ft", "m").optional(),
+  roomShape: Joi.string().valid(
+      "rectangle",
+      "square",
+      "l-ne",
+      "l-nw",
+      "l-se",
+      "l-sw",
+      "t-north",
+      "u-north",
+      "octagon",
+  ).optional(),
+  wallsEnabled: Joi.boolean().optional(),
+  wallColor: hexColorSchema.optional(),
+  wallThickness: Joi.number().min(0.05).max(1).optional(),
+  floorplanUrl: Joi.string().max(2000).allow("").optional(),
+  floorplanVisible: Joi.boolean().optional(),
+  floorplanOpacity: Joi.number().min(0.1).max(1).optional(),
+  floorplanRotation: Joi.number().min(-180).max(180).optional(),
+  floorplanOffsetX: Joi.number().min(-50).max(50).optional(),
+  floorplanOffsetZ: Joi.number().min(-50).max(50).optional(),
+});
+
 const createLayoutSchema = Joi.object({
   name: Joi.string().max(200).required(),
   description: Joi.string().max(2000).required(),
   objects: Joi.array().items(layoutObjectSchema).max(500).required(),
+  layoutDimensions: layoutDimensionsSchema.optional(),
+  sceneSettings: sceneSettingsSchema.optional(),
 });
 
 const updateLayoutSchema = Joi.object({
@@ -62,6 +91,7 @@ const updateLayoutSchema = Joi.object({
   description: Joi.string().max(2000).allow("").optional(),
   objects: Joi.array().items(layoutObjectSchema).max(500).optional(),
   sceneSettings: sceneSettingsSchema.optional(),
+  layoutDimensions: layoutDimensionsSchema.optional(),
 }).min(1);
 
 module.exports = {
@@ -69,4 +99,5 @@ module.exports = {
   createLayoutSchema,
   updateLayoutSchema,
   sceneSettingsSchema,
+  layoutDimensionsSchema,
 };
