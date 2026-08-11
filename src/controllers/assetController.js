@@ -58,7 +58,8 @@ function saveLocalFloorplan(userId, buffer, filename) {
 
 function buildFloorplanPublicUrl(req, userId, filename) {
   if (process.env.ASSET_BASE_URL) {
-    return `${process.env.ASSET_BASE_URL.replace(/\/$/, "")}/uploads/floorplans/${userId}/${filename}`;
+    const base = process.env.ASSET_BASE_URL.replace(/\/$/, "");
+    return `${base}/uploads/floorplans/${userId}/${filename}`;
   }
   return `/uploads/floorplans/${userId}/${filename}`;
 }
@@ -157,8 +158,25 @@ const uploadFloorplan = async (req, res) => {
     return res.status(400).json({error: "Only PNG, JPG, and WebP floorplan images are allowed."});
   }
 
+  const contentType = FLOORPLAN_CONTENT_TYPES[ext];
   const safeName = `${uuidv4()}${ext}`;
   const userId = req.user?.id || "anonymous";
+
+  if (req.sanityClient && process.env.SANITY_TOKEN) {
+    try {
+      const asset = await req.sanityClient.assets.upload("image", req.file.buffer, {
+        filename: safeName,
+        contentType,
+      });
+      return res.status(201).json({
+        url: asset.url,
+        originalName: req.file.originalname,
+        storage: "sanity",
+      });
+    } catch (err) {
+      console.warn("Sanity floorplan upload failed, using local storage:", err.message);
+    }
+  }
 
   try {
     saveLocalFloorplan(userId, req.file.buffer, safeName);

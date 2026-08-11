@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const {uploadAsset: uploadAssetHandler, uploadFloorplan: uploadFloorplanHandler, proxyAsset} = require("../controllers/assetController");
+const {
+  uploadAsset: uploadAssetHandler,
+  uploadFloorplan: uploadFloorplanHandler,
+  proxyAsset,
+} = require("../controllers/assetController");
 const {uploadAsset: uploadMiddleware} = require("../middleware/uploadAsset");
 const {uploadFloorplan: uploadFloorplanMiddleware} = require("../middleware/uploadFloorplan");
 const {authenticate} = require("../middleware/authenticate");
